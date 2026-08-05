@@ -20,6 +20,7 @@ sourceSets.main.resources {
 }
 
 repositories {
+    mavenCentral()
 }
 
 base {
@@ -76,6 +77,8 @@ configurations {
 }
 
 dependencies {
+    jarJar implementation("org.xerial:sqlite-jdbc:$sqlite_jdbc_version")
+    additionalRuntimeClasspath("org.xerial:sqlite-jdbc:$sqlite_jdbc_version")
 }
 
 var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {

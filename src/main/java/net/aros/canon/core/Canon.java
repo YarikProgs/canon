@@ -1,71 +1,48 @@
 package net.aros.canon.core;
 
-import net.aros.canon.core.executors.ThreadExecutor;
 import net.aros.canon.core.flag.FlagRegistry;
-import net.aros.canon.event.CanonEventBus;
-import net.aros.canon.impl.CanonEventBusImpl;
+import net.aros.canon.core.flag.FlagStore;
+import net.aros.canon.event.FlagListeners;
+import net.aros.canon.impl.FlagListenersImpl;
 import net.aros.canon.impl.FlagRegistryImpl;
-import net.aros.canon.impl.ScriptThreadExecutor;
-import net.aros.canon.impl.ServerThreadExecutor;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.server.ServerStartingEvent;
+import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 
 import static net.aros.canon.CanonLibMod.MOD_ID;
 
 @EventBusSubscriber(modid = MOD_ID)
 public class Canon {
-    private static final Canon INSTANCE = new Canon(
-            new CanonEventBusImpl(),
-            new FlagRegistryImpl()
-    );
+    private static final Canon INSTANCE = new Canon();
 
     public static Canon get() {
         return INSTANCE;
     }
 
-    private final CanonEventBus eventBus;
-    private final FlagRegistry flagRegistry;
-    private ThreadExecutor scriptThreadExecutor;
-    private ThreadExecutor mainThreadExecutor;
+    private final FlagRegistry flagRegistry = new FlagRegistryImpl();
+    private final FlagStore flagStore = new FlagStore();
+    private final FlagListeners flagListeners = new FlagListenersImpl();
 
-    public Canon(CanonEventBus eventBus, FlagRegistry flagRegistry) {
-        this.eventBus = eventBus;
-        this.flagRegistry = flagRegistry;
-    }
-
-    public ThreadExecutor mainThreadExecutor() {
-        return mainThreadExecutor;
-    }
-
-    public ThreadExecutor scriptExecutor() {
-        return scriptThreadExecutor;
-    }
-
-    public FlagRegistry flags() {
+    public FlagRegistry flagRegistry() {
         return flagRegistry;
     }
 
-    public CanonEventBus events() {
-        return eventBus;
+    public FlagStore flagStore() {
+        return flagStore;
+    }
+
+    public FlagListeners flagListeners() {
+        return flagListeners;
     }
 
     @SubscribeEvent
     public static void onServerShutdown(ServerStoppedEvent event) {
-        try {
-            INSTANCE.scriptThreadExecutor.shutdown();
-            INSTANCE.mainThreadExecutor.shutdown();
-            INSTANCE.scriptThreadExecutor = null;
-            INSTANCE.mainThreadExecutor = null;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        INSTANCE.flagStore.serverShutdown();
     }
 
     @SubscribeEvent
-    public static void onServerStart(ServerStartingEvent event) {
-        INSTANCE.mainThreadExecutor = new ServerThreadExecutor(event.getServer());
-        INSTANCE.scriptThreadExecutor = new ScriptThreadExecutor();
+    public static void onServerStart(ServerAboutToStartEvent event) {
+        INSTANCE.flagStore.serverAboutToStart(event.getServer(), INSTANCE.flagRegistry);
     }
 }
