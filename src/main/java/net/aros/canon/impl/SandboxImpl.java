@@ -73,7 +73,7 @@ public class SandboxImpl implements Sandbox {
     private <T> void checkConflict(FlagKey<T> key) {
         Sandbox owner = store.getOwner(key);
         if (owner != null && owner != this) {
-            LOGGER.warn("Flag {} conflict: sandbox {} overwrote {}", key.key(), name(), owner.name());
+            LOGGER.warn("Flag {} conflict: sandbox {} overwrote {}", key.identifier(), name(), owner.name());
         }
     }
 }

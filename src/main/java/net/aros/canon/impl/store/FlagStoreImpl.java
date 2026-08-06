@@ -11,6 +11,7 @@ import net.aros.canon.core.flag.FlagStore;
 import net.aros.canon.event.FlagHooks;
 import net.aros.canon.tx.Sandbox;
 import net.aros.canon.wrapper.Can;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.storage.LevelResource;
 import org.jetbrains.annotations.NotNull;
@@ -30,8 +31,8 @@ public class FlagStoreImpl implements FlagStore {
     private final FlagsDB db = new FlagsDB();
     private final Differ differ = new Differ();
 
-    private final Map<String, Object> flags = new ConcurrentHashMap<>();
-    private final Map<String, Sandbox> ownership = new ConcurrentHashMap<>();
+    private final Map<ResourceLocation, Object> flags = new ConcurrentHashMap<>();
+    private final Map<ResourceLocation, Sandbox> ownership = new ConcurrentHashMap<>();
 
     public void createConnection(@NotNull MinecraftServer server) {
         db.createConnection(server.getWorldPath(LevelResource.ROOT).resolve(MOD_ID).toAbsolutePath());
@@ -43,21 +44,23 @@ public class FlagStoreImpl implements FlagStore {
     }
 
     public void applyDiff(@NotNull Diff diff) {
-        for (String key : diff.deadKeys()) {
+        for (ResourceLocation key : diff.deadKeys()) {
             ownership.remove(key);
             flags.remove(key);
         }
-        for (String key : diff.conflicts()) {
+        for (ResourceLocation key : diff.conflicts()) {
             ownership.remove(key);
             flags.remove(key);
         }
         for (Map.Entry<FlagKey<?>, String> entry : diff.added().entrySet()) {
-            flags.put(entry.getKey().key(), decodeJson(entry.getKey(), entry.getValue()).orElse(entry.getKey().defaultValue()));
+            flags.put(entry.getKey().identifier(), decodeJson(entry.getKey(), entry.getValue()).orElse(entry.getKey().defaultValue()));
         }
     }
 
     public void closeConnection() {
         db.closeConnection();
+        flags.clear();
+        ownership.clear();
     }
 
     @Override
@@ -69,32 +72,32 @@ public class FlagStoreImpl implements FlagStore {
 
     @Override
     public <T> void setLive(@NotNull FlagKey<T> key, T value) {
-        flags.put(key.key(), value);
+        flags.put(key.identifier(), value);
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public <T> T get(@NotNull FlagKey<T> key) {
-        return (T) flags.getOrDefault(key.key(), key.defaultValue());
+        return (T) flags.getOrDefault(key.identifier(), key.defaultValue());
     }
 
     @Override
     public void setOwnership(@NotNull FlagKey<?> key, Sandbox sandbox) {
-        ownership.put(key.key(), sandbox);
+        ownership.put(key.identifier(), sandbox);
     }
 
     @Override
     public Sandbox getOwner(@NotNull FlagKey<?> key) {
-        return ownership.get(key.key());
+        return ownership.get(key.identifier());
     }
 
     @Override
     public void removeOwnership(@NotNull FlagKey<?> key, Sandbox sandbox) {
-        ownership.remove(key.key(), sandbox);
+        ownership.remove(key.identifier(), sandbox);
     }
 
     public CompletableFuture<Void> commit(@NotNull Map<FlagKey<?>, Object> changes, boolean notifyListeners) {
-        Map<String, String> encoded = new HashMap<>();
+        Map<ResourceLocation, String> encoded = new HashMap<>();
         for (Map.Entry<FlagKey<?>, Object> entry : changes.entrySet()) {
             tryEncodeEntryTo(encoded, entry);
         }
@@ -102,13 +105,13 @@ public class FlagStoreImpl implements FlagStore {
         return CompletableFuture
                 .runAsync(() -> db.writeChanges(encoded), dbExecutor)
                 .thenRunAsync(() -> {
-                    Map<String, Object> oldFlags = new HashMap<>(flags);
+                    Map<ResourceLocation, Object> oldFlags = new HashMap<>(flags);
                     for (var e : changes.entrySet())
-                        flags.put(e.getKey().key(), e.getValue());
+                        flags.put(e.getKey().identifier(), e.getValue());
                     if (notifyListeners) {
                         for (var e : changes.entrySet())
                             //noinspection rawtypes,unchecked
-                            FlagHooks.flagChanged((FlagKey) e.getKey(), oldFlags.get(e.getKey().key()), e.getValue());
+                            FlagHooks.flagChanged((FlagKey) e.getKey(), oldFlags.get(e.getKey().identifier()), e.getValue());
                     }
                 }, Can.server());
     }
@@ -125,22 +128,22 @@ public class FlagStoreImpl implements FlagStore {
 
         var result = key.decode(JsonOps.COMPRESSED, element);
         if (result.isError()) {
-            LOGGER.error("Failed to load flag \"{}\": {}", key.key(), result.error().orElseThrow().message());
+            LOGGER.error("Failed to load flag \"{}\": {}", key.identifier(), result.error().orElseThrow().message());
             return Optional.empty();
         }
         return (Optional<Object>) result.result();
     }
 
-    private <T> void tryEncodeEntryTo(Map<String, String> dest, Map.@NotNull Entry<FlagKey<?>, Object> entry) {
+    private <T> void tryEncodeEntryTo(Map<ResourceLocation, String> dest, Map.@NotNull Entry<FlagKey<?>, Object> entry) {
         //noinspection unchecked
         encodeToJson((FlagKey<T>) entry.getKey(), (T) entry.getValue()).ifPresent(json ->
-                dest.put(entry.getKey().key(), json));
+                dest.put(entry.getKey().identifier(), json));
     }
 
     private static <T> Optional<String> encodeToJson(@NotNull FlagKey<T> key, T value) {
         var result = key.encode(JsonOps.COMPRESSED, value);
         if (result.isError()) {
-            LOGGER.error("Failed to encode flag \"{}\": {}", key.key(), result.error().orElseThrow().message());
+            LOGGER.error("Failed to encode flag \"{}\": {}", key.identifier(), result.error().orElseThrow().message());
             return Optional.empty();
         }
         return result.result().map(GSON::toJson);
@@ -163,13 +166,13 @@ public class FlagStoreImpl implements FlagStore {
         }
 
         private void removeOldKeys(@NotNull Set<FlagKey<?>> keys, Diff result) {
-            Set<String> newStringKeys = keys.stream().map(FlagKey::key).collect(Collectors.toSet());
+            Set<ResourceLocation> newIdentifierKeys = keys.stream().map(FlagKey::identifier).collect(Collectors.toSet());
             flags.keySet().removeIf(key -> {
-                if (newStringKeys.contains(key)) return false;
+                if (newIdentifierKeys.contains(key)) return false;
 
                 Sandbox owner = ownership.get(key);
                 if (owner != null) {
-                    LOGGER.warn("Removing sandbox {}'s ownership of {} due to dead key elimination", key, owner.name());;
+                    LOGGER.warn("Removing sandbox {}'s ownership of {} due to dead key elimination", key, owner.name());
                 }
                 result.deadKeys().add(key);
 
@@ -179,26 +182,24 @@ public class FlagStoreImpl implements FlagStore {
 
         private void checkTypeConflicts(@NotNull Set<FlagKey<?>> keys, Diff result) {
             for (FlagKey<?> key : keys) {
-                Object value = flags.get(key.key());
+                Object value = flags.get(key.identifier());
                 if (value == null || key.type().isAssignableFrom(value.getClass())) continue;
 
                 LOGGER.warn("Flag {} type mismatch: stored {}, expected {}. Removing stored value",
-                        key.key(), value.getClass().getName(), key.type().getName());
+                        key.identifier(), value.getClass().getName(), key.type().getName());
 
-                Sandbox owner = ownership.get(key.key());
+                Sandbox owner = ownership.get(key.identifier());
                 if (owner != null) {
-                    LOGGER.warn("Removing sandbox {}'s ownership of {} due to type incompatibility", owner.name(), key.key());
+                    LOGGER.warn("Removing sandbox {}'s ownership of {} due to type incompatibility", owner.name(), key.identifier());
                 }
-                result.conflicts().add(key.key());
+                result.conflicts().add(key.identifier());
             }
         }
 
         private void addNewKeys(@NotNull Set<FlagKey<?>> keys, Diff result) {
             for (FlagKey<?> key : keys) {
-                if (!flags.containsKey(key.key())) {
-                    encodeToJson(key).ifPresent(json -> {
-                        result.added().put(key, json);
-                    });
+                if (!flags.containsKey(key.identifier())) {
+                    encodeToJson(key).ifPresent(json -> result.added().put(key, json));
                 }
             }
         }

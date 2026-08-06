@@ -3,6 +3,7 @@ package net.aros.canon.core.db;
 import com.mojang.logging.LogUtils;
 import net.aros.canon.core.flag.FlagKey;
 import net.aros.canon.impl.store.Diff;
+import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
@@ -47,8 +48,6 @@ public class FlagsDB {
             WHERE key = ?
             """.formatted(TABLE);
 
-    private static final String SQL_SELECT = "SELECT key, value FROM flags";
-
     private Connection connection;
 
     public void createConnection(Path dbPath) {
@@ -77,26 +76,13 @@ public class FlagsDB {
         withConnection("closeConnection", Connection::close);
     }
 
-    public Map<String, String> readAllFlags() {
-        Map<String, String> flags = new HashMap<>();
-
-        withConnection("readAllFlags", conn -> {
-            try (var st = conn.createStatement()) {
-                var rs = st.executeQuery(SQL_SELECT);
-                while (rs.next()) flags.put(rs.getString("key"), rs.getString("value"));
-            }
-        });
-
-        return flags;
-    }
-
-    public void writeChanges(Map<String, String> changes) {
+    public void writeChanges(Map<ResourceLocation, String> changes) {
         withConnection("writeChanges", conn -> {
             conn.setAutoCommit(false);
 
             try (PreparedStatement statement = conn.prepareStatement(SQL_UPSERT)) {
                 for (var entry : changes.entrySet()) {
-                    statement.setString(1, entry.getKey());
+                    statement.setString(1, entry.getKey().toString());
                     statement.setString(2, entry.getValue());
                     statement.addBatch();
                 }
@@ -114,7 +100,7 @@ public class FlagsDB {
             if (!diff.conflicts().isEmpty()) {
                 try (PreparedStatement statement = conn.prepareStatement(SQL_DELETE)) {
                     for (var key : diff.conflicts()) {
-                        statement.setString(1, key);
+                        statement.setString(1, key.toString());
                         statement.addBatch();
                     }
                     statement.executeBatch();
@@ -134,7 +120,7 @@ public class FlagsDB {
 
         try (PreparedStatement statement = conn.prepareStatement(SQL_SELECT_BY_KEY)) {
             for (FlagKey<?> key : diff.added().keySet()) {
-                statement.setString(1, key.key());
+                statement.setString(1, key.identifier().toString());
 
                 try (var rs = statement.executeQuery()) {
                     if (rs.next()) {
@@ -148,7 +134,7 @@ public class FlagsDB {
         if (!missing.isEmpty()) {
             try (PreparedStatement st = conn.prepareStatement(SQL_UPSERT)) {
                 for (var entry : missing.entrySet()) {
-                    st.setString(1, entry.getKey().key());
+                    st.setString(1, entry.getKey().identifier().toString());
                     st.setString(2, entry.getValue());
                     st.addBatch();
                 }

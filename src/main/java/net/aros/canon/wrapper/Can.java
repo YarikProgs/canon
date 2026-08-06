@@ -1,6 +1,5 @@
 package net.aros.canon.wrapper;
 
-import com.mojang.serialization.Codec;
 import net.aros.canon.core.Canon;
 import net.aros.canon.core.flag.FlagKey;
 import net.aros.canon.impl.SandboxImpl;
@@ -15,11 +14,6 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Objects;
 
 public class Can {
-    @Contract("_, _, _, _ -> new")
-    public static <T> @NotNull FlagKey<T> flag(String key, Class<T> type, Codec<T> codec, T defaultValue) {
-        return new FlagKey<>(key, codec, type, defaultValue);
-    }
-
     @Contract("_ -> new")
     public static @NotNull Sandbox sandbox(String name) {
         return new SandboxImpl(Canon.get().flagStore(), name);

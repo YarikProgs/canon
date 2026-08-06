@@ -3,17 +3,18 @@ package net.aros.canon.core.flag;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
+import net.minecraft.resources.ResourceLocation;
 
 public class FlagKey<T> {
-    private final String key;
-    private final Codec<T> codec;
+    private final ResourceLocation key;
     private final Class<T> type;
+    private final Codec<T> codec;
     private final T defaultValue;
 
-    public FlagKey(String key, Codec<T> codec, Class<T> type, T defaultValue) {
+    public FlagKey(ResourceLocation key, Class<T> type, Codec<T> codec, T defaultValue) {
         this.key = key;
-        this.codec = codec;
         this.type = type;
+        this.codec = codec;
         this.defaultValue = defaultValue;
     }
 
@@ -25,7 +26,7 @@ public class FlagKey<T> {
         return codec.parse(ops, input);
     }
 
-    public String key() {
+    public ResourceLocation identifier() {
         return key;
     }
 

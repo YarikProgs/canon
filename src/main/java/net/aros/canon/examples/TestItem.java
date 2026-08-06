@@ -1,6 +1,8 @@
 package net.aros.canon.examples;
 
 import com.mojang.serialization.Codec;
+import net.aros.canon.CanonLibMod;
+import net.aros.canon.core.Canon;
 import net.aros.canon.core.flag.FlagKey;
 import net.aros.canon.core.flag.registration.FlagRegistrationEvent;
 import net.aros.canon.wrapper.Can;
@@ -31,8 +33,8 @@ public class TestItem extends Item {
     }
 
     public static boolean usingLegacy = true;
-    public static final FlagKey<Boolean> PLAYER_DIED_LEGACY = Can.flag("died", Boolean.class, Codec.BOOL, false);
-    public static final FlagKey<Integer> PLAYER_DIED = Can.flag("died", Integer.class, Codec.INT, 0);
+    public static final FlagKey<Boolean> PLAYER_DIED_LEGACY = new FlagKey<>(CanonLibMod.id("died"), Boolean.class, Codec.BOOL, false);
+    public static final FlagKey<Integer> PLAYER_DIED = new FlagKey<>(CanonLibMod.id("died"), Integer.class, Codec.INT, 0);
 
     @Override
     @NotNull

@@ -3,10 +3,13 @@ package net.aros.canon;
 import com.mojang.logging.LogUtils;
 import net.aros.canon.core.Canon;
 import net.aros.canon.examples.TestItem;
+import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
 @Mod(CanonLibMod.MOD_ID)
@@ -27,5 +30,10 @@ public class CanonLibMod {
             Class.forName("net.aros.canon.core.Canon");
         } catch (ClassNotFoundException ignore) {
         }
+    }
+
+    @Contract("_ -> new")
+    public static @NotNull ResourceLocation id(String path) {
+        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
     }
 }
