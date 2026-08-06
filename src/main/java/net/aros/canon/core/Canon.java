@@ -2,17 +2,20 @@ package net.aros.canon.core;
 
 import net.aros.canon.core.flag.FlagRegistry;
 import net.aros.canon.core.flag.FlagStore;
-import net.aros.canon.event.FlagListeners;
-import net.aros.canon.impl.FlagListenersImpl;
+import net.aros.canon.event.FlagEventHandler;
+import net.aros.canon.impl.FlagEventHandlerImpl;
 import net.aros.canon.impl.FlagRegistryImpl;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
+import net.aros.canon.impl.FlagReloadListener;
+import net.minecraft.Util;
+import net.minecraft.server.packs.resources.PreparableReloadListener;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.AddReloadListenerEvent;
 import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import org.jetbrains.annotations.NotNull;
 
-import static net.aros.canon.CanonLibMod.MOD_ID;
+import java.util.concurrent.CompletableFuture;
 
-@EventBusSubscriber(modid = MOD_ID)
 public class Canon {
     private static final Canon INSTANCE = new Canon();
 
@@ -20,9 +23,15 @@ public class Canon {
         return INSTANCE;
     }
 
-    private final FlagRegistry flagRegistry = new FlagRegistryImpl();
+    private Canon() {
+        NeoForge.EVENT_BUS.addListener(this::onServerShutdown);
+        NeoForge.EVENT_BUS.addListener(this::onAddReloadListener);
+        NeoForge.EVENT_BUS.addListener(this::onServerAboutToStart);
+    }
+
+    private final FlagRegistryImpl flagRegistry = new FlagRegistryImpl();
     private final FlagStore flagStore = new FlagStore();
-    private final FlagListeners flagListeners = new FlagListenersImpl();
+    private final FlagEventHandlerImpl eventHandler = new FlagEventHandlerImpl();
 
     public FlagRegistry flagRegistry() {
         return flagRegistry;
@@ -32,17 +41,20 @@ public class Canon {
         return flagStore;
     }
 
-    public FlagListeners flagListeners() {
-        return flagListeners;
+    public FlagEventHandler flagEventHandler() {
+        return eventHandler;
     }
 
-    @SubscribeEvent
-    public static void onServerShutdown(ServerStoppedEvent event) {
-        INSTANCE.flagStore.serverShutdown();
+    private void onServerAboutToStart(ServerAboutToStartEvent event) {
+        flagStore.createConnection(event.getServer());
+        new FlagReloadListener(flagRegistry, eventHandler, flagStore).simpleReload();
     }
 
-    @SubscribeEvent
-    public static void onServerStart(ServerAboutToStartEvent event) {
-        INSTANCE.flagStore.serverAboutToStart(event.getServer(), INSTANCE.flagRegistry);
+    private void onAddReloadListener(AddReloadListenerEvent event) {
+        event.addListener(new FlagReloadListener(flagRegistry, eventHandler, flagStore));
+    }
+
+    private void onServerShutdown(ServerStoppedEvent event) {
+        flagStore.closeConnection();
     }
 }

@@ -1,6 +1,7 @@
 package net.aros.canon.core.db;
 
 import com.mojang.logging.LogUtils;
+import net.aros.canon.core.flag.FlagStore;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.storage.LevelResource;
 import org.jetbrains.annotations.NotNull;
@@ -31,26 +32,32 @@ public class FlagsDB {
                 value TEXT NOT NULL
             )
             """.formatted(TABLE);
+
     private static final String SQL_UPSERT = """
             INSERT INTO %s(key, value)
             VALUES (?, ?)
             ON CONFLICT(key) DO UPDATE SET
                 value = excluded.value
             """.formatted(TABLE);
+
+    private static final String SQL_DELETE = """
+            DELETE FROM %s
+            WHERE key = ?
+            """.formatted(TABLE);
+
     private static final String SQL_SELECT = "SELECT key, value FROM flags";
 
     private Connection connection;
 
-    public void createConnection(@NotNull MinecraftServer server) {
-        Path path = server.getWorldPath(LevelResource.ROOT).resolve(MOD_ID).toAbsolutePath();
+    public void createConnection(Path dbPath) {
         try {
-            Files.createDirectories(path);
+            Files.createDirectories(dbPath);
         } catch (IOException e) {
             LOGGER.error("Failed to mkdirs for db");
         }
 
         try {
-            connection = DriverManager.getConnection("jdbc:sqlite:" + path.resolve(FILENAME));
+            connection = DriverManager.getConnection("jdbc:sqlite:" + dbPath.resolve(FILENAME));
         } catch (SQLException e) {
             LOGGER.error("Failed to create connection", e);
         }
@@ -92,6 +99,32 @@ public class FlagsDB {
                     statement.addBatch();
                 }
                 statement.executeBatch();
+            }
+        }, Connection::rollback, conn -> conn.setAutoCommit(true));
+    }
+
+    public void writeDiff(FlagStore.Diff diff) {
+        withConnection("writeDiff", conn -> {
+            conn.setAutoCommit(false);
+
+            if (!diff.conflicts().isEmpty()) {
+                try (PreparedStatement statement = conn.prepareStatement(SQL_DELETE)) {
+                    for (var key : diff.conflicts()) {
+                        statement.setString(1, key);
+                        statement.addBatch();
+                    }
+                    statement.executeBatch();
+                }
+            }
+            if (!diff.added().isEmpty()) {
+                try (PreparedStatement statement = conn.prepareStatement(SQL_UPSERT)) {
+                    for (var entry : diff.added().entrySet()) {
+                        statement.setString(1, entry.getKey().key());
+                        statement.setString(2, entry.getValue());
+                        statement.addBatch();
+                    }
+                    statement.executeBatch();
+                }
             }
         }, Connection::rollback, conn -> conn.setAutoCommit(true));
     }

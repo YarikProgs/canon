@@ -15,9 +15,9 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Objects;
 
 public class Can {
-    @Contract("_, _, _ -> new")
-    public static <T> @NotNull FlagRegistration<T> flag(String key, Codec<T> codec, T defaultValue) {
-        return new FlagRegistration<>(new FlagKey<>(key, codec, defaultValue));
+    @Contract("_, _, _, _ -> new")
+    public static <T> @NotNull FlagKey<T> flag(String key, Class<T> type, Codec<T> codec, T defaultValue) {
+        return new FlagKey<>(key, codec, type, defaultValue);
     }
 
     @Contract("_ -> new")

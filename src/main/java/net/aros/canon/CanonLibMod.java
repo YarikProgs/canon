@@ -1,6 +1,7 @@
 package net.aros.canon;
 
 import com.mojang.logging.LogUtils;
+import net.aros.canon.core.Canon;
 import net.aros.canon.examples.TestItem;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
@@ -20,5 +21,11 @@ public class CanonLibMod {
         LOGGER.info("Canon Lib is initializing");
 
         ITEMS.register(bus);
+
+        // touching event registration inside of class
+        try {
+            Class.forName("net.aros.canon.core.Canon");
+        } catch (ClassNotFoundException ignore) {
+        }
     }
 }

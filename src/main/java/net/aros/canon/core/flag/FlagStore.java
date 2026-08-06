@@ -9,16 +9,15 @@ import net.aros.canon.event.FlagHooks;
 import net.aros.canon.tx.Sandbox;
 import net.aros.canon.wrapper.Can;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.storage.LevelResource;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.stream.Collectors;
+
+import static net.aros.canon.CanonLibMod.MOD_ID;
 
 public class FlagStore {
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -30,7 +29,7 @@ public class FlagStore {
     private final Map<String, Object> flags = new ConcurrentHashMap<>();
     private final Map<String, Sandbox> ownership = new ConcurrentHashMap<>();
 
-    public void loadAll(@NotNull FlagRegistry flagRegistry) {
+    private void loadAll(@NotNull FlagRegistry flagRegistry) {
         Map<String, String> raw = db.readAllFlags();
 
         for (FlagKey<?> key : flagRegistry.allKeys()) {
@@ -40,13 +39,82 @@ public class FlagStore {
         }
     }
 
-    public void serverAboutToStart(MinecraftServer server, FlagRegistry flagRegistry) {
-        db.createConnection(server);
+    public void createConnection(MinecraftServer server) {
+        db.createConnection(server.getWorldPath(LevelResource.ROOT).resolve(MOD_ID).toAbsolutePath());
         db.initialize();
-        loadAll(flagRegistry);
     }
 
-    public void serverShutdown() {
+    public Diff diff(@NotNull FlagRegistry flagRegistry) {
+        Set<FlagKey<?>> newKeys = flagRegistry.allKeys();
+        Diff result = new Diff();
+
+        removeOldKeys(newKeys, result);
+        checkTypeConflicts(newKeys, result);
+        addNewKeys(newKeys, result);
+
+        return result;
+    }
+
+    private void removeOldKeys(@NotNull Set<FlagKey<?>> keys, Diff result) {
+        Set<String> newStringKeys = keys.stream().map(FlagKey::key).collect(Collectors.toSet());
+        flags.keySet().removeIf(key -> {
+            if (newStringKeys.contains(key)) return false;
+
+            Sandbox owner = ownership.get(key);
+            if (owner != null) {
+                LOGGER.warn("Removing sandbox {}'s ownership of {} due to dead key elimination", key, owner.name());;
+            }
+            result.deadKeys.add(key);
+
+            return true;
+        });
+    }
+
+    private void checkTypeConflicts(@NotNull Set<FlagKey<?>> keys, Diff result) {
+        for (FlagKey<?> key : keys) {
+            Object value = flags.get(key.key());
+            if (value == null || key.type().isAssignableFrom(value.getClass())) continue;
+
+            LOGGER.warn("Flag {} type mismatch: stored {}, expected {}. Removing stored value",
+                    key.key(), value.getClass().getName(), key.type().getName());
+
+            Sandbox owner = ownership.get(key.key());
+            if (owner != null) {
+                LOGGER.warn("Removing sandbox {}'s ownership of {} due to type incompatibility", owner.name(), key.key());
+            }
+            result.conflicts.add(key.key());
+        }
+    }
+
+    private void addNewKeys(@NotNull Set<FlagKey<?>> keys, Diff result) {
+        for (FlagKey<?> key : keys) {
+            if (!flags.containsKey(key.key())) {
+                encodeToJson(key).ifPresent(json -> {
+                    result.added.put(key, json);
+                });
+            }
+        }
+    }
+
+    public CompletableFuture<Void> persistDiff(Diff diff) {
+        return CompletableFuture.runAsync(() -> db.writeDiff(diff), dbExecutor);
+    }
+
+    public void applyDiff(@NotNull Diff diff) {
+        for (String key : diff.deadKeys) {
+            ownership.remove(key);
+            flags.remove(key);
+        }
+        for (String key : diff.conflicts) {
+            ownership.remove(key);
+            flags.remove(key);
+        }
+        for (FlagKey<?> key : diff.added.keySet()) {
+            flags.put(key.key(), key.defaultValue());
+        }
+    }
+
+    public void closeConnection() {
         db.closeConnection();
     }
 
@@ -124,5 +192,15 @@ public class FlagStore {
             return Optional.empty();
         }
         return result.result().map(GSON::toJson);
+    }
+
+    private static <T> Optional<String> encodeToJson(@NotNull FlagKey<T> key) {
+        return encodeToJson(key, key.defaultValue());
+    }
+
+    public record Diff(Map<FlagKey<?>, String> added, Set<String> deadKeys, Set<String> conflicts) {
+        private Diff() {
+            this(new HashMap<>(), new HashSet<>(), new HashSet<>());
+        }
     }
 }
