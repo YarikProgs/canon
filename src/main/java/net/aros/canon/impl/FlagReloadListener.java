@@ -1,7 +1,7 @@
 package net.aros.canon.impl;
 
 import net.aros.canon.core.flag.FlagKey;
-import net.aros.canon.core.flag.FlagStore;
+import net.aros.canon.impl.store.FlagStoreImpl;
 import net.aros.canon.event.FlagHooks;
 import net.minecraft.Util;
 import net.minecraft.server.packs.resources.PreparableReloadListener;
@@ -19,9 +19,9 @@ import java.util.concurrent.Executor;
 public class FlagReloadListener implements PreparableReloadListener {
     private final FlagRegistryImpl registry;
     private final FlagEventHandlerImpl eventHandler;
-    private final FlagStore store;
+    private final FlagStoreImpl store;
 
-    public FlagReloadListener(FlagRegistryImpl registry, FlagEventHandlerImpl eventHandler, FlagStore store) {
+    public FlagReloadListener(FlagRegistryImpl registry, FlagEventHandlerImpl eventHandler, FlagStoreImpl store) {
         this.registry = registry;
         this.eventHandler = eventHandler;
         this.store = store;
@@ -44,7 +44,7 @@ public class FlagReloadListener implements PreparableReloadListener {
                     registry.replaceWith(newKeys);
                     return registry;
                 }, gameExecutor)
-                .thenApplyAsync(store::diff, backgroundExecutor)
+                .thenApplyAsync(store.differ()::diff, backgroundExecutor)
                 .thenCompose(diff -> store.persistDiff(diff).thenApply(values -> {
                     diff.added().putAll(values);
                     return diff;
@@ -59,7 +59,7 @@ public class FlagReloadListener implements PreparableReloadListener {
         List<FlagKey<?>> newKeys = FlagHooks.registerAllKeys();
         registry.replaceWith(newKeys);
         return CompletableFuture
-                .supplyAsync(() -> store.diff(registry), Util.backgroundExecutor())
+                .supplyAsync(() -> store.differ().diff(registry), Util.backgroundExecutor())
                 .thenCompose(diff -> store.persistDiff(diff).thenApply(values -> {
                     diff.added().putAll(values);
                     return diff;

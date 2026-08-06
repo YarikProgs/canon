@@ -2,6 +2,7 @@ package net.aros.canon.impl;
 
 import net.aros.canon.core.flag.FlagKey;
 import net.aros.canon.core.flag.FlagStore;
+import net.aros.canon.impl.store.FlagStoreImpl;
 import net.aros.canon.tx.Transaction;
 
 import java.util.HashMap;
@@ -28,6 +29,6 @@ public class TransactionImpl implements Transaction {
 
     @Override
     public void commit() {
-        store.commit(pendingChanges, true);
+        ((FlagStoreImpl) store).commit(pendingChanges, true);
     }
 }

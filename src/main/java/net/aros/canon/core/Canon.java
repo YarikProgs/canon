@@ -2,6 +2,7 @@ package net.aros.canon.core;
 
 import net.aros.canon.core.flag.FlagRegistry;
 import net.aros.canon.core.flag.FlagStore;
+import net.aros.canon.impl.store.FlagStoreImpl;
 import net.aros.canon.event.FlagEventHandler;
 import net.aros.canon.impl.FlagEventHandlerImpl;
 import net.aros.canon.impl.FlagRegistryImpl;
@@ -25,7 +26,7 @@ public class Canon {
     }
 
     private final FlagRegistryImpl flagRegistry = new FlagRegistryImpl();
-    private final FlagStore flagStore = new FlagStore();
+    private final FlagStoreImpl flagStore = new FlagStoreImpl();
     private final FlagEventHandlerImpl eventHandler = new FlagEventHandlerImpl();
 
     public FlagRegistry flagRegistry() {
@@ -42,7 +43,7 @@ public class Canon {
 
     private void onServerAboutToStart(ServerAboutToStartEvent event) {
         flagStore.createConnection(event.getServer());
-        new FlagReloadListener(flagRegistry, eventHandler, flagStore).simpleReload();
+        new FlagReloadListener(flagRegistry, eventHandler, flagStore).simpleReload().join();
     }
 
     private void onAddReloadListener(AddReloadListenerEvent event) {

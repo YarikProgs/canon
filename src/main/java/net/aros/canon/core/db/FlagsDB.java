@@ -2,7 +2,7 @@ package net.aros.canon.core.db;
 
 import com.mojang.logging.LogUtils;
 import net.aros.canon.core.flag.FlagKey;
-import net.aros.canon.core.flag.FlagStore;
+import net.aros.canon.impl.store.Diff;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
@@ -105,7 +105,7 @@ public class FlagsDB {
         }, Connection::rollback, conn -> conn.setAutoCommit(true));
     }
 
-    public Map<FlagKey<?>, String> writeDiffAndGetNewFlags(FlagStore.Diff diff) {
+    public Map<FlagKey<?>, String> writeDiffAndGetNewFlags(Diff diff) {
         Map<FlagKey<?>, String> loaded = new HashMap<>();
 
         withConnection("writeDiff", conn -> {
@@ -129,7 +129,7 @@ public class FlagsDB {
         return loaded;
     }
 
-    private void addMissingOnly(Connection conn, FlagStore.Diff diff, Map<FlagKey<?>, String> loaded) throws SQLException {
+    private void addMissingOnly(Connection conn, Diff diff, Map<FlagKey<?>, String> loaded) throws SQLException {
         Map<FlagKey<?>, String> missing = new HashMap<>(diff.added());
 
         try (PreparedStatement statement = conn.prepareStatement(SQL_SELECT_BY_KEY)) {
