@@ -11,6 +11,7 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.AddReloadListenerEvent;
 import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import org.jetbrains.annotations.NotNull;
 
 public class Canon {
     private static final Canon INSTANCE = new Canon();
@@ -41,12 +42,12 @@ public class Canon {
         return eventHandler;
     }
 
-    private void onServerAboutToStart(ServerAboutToStartEvent event) {
+    private void onServerAboutToStart(@NotNull ServerAboutToStartEvent event) {
         flagStore.createConnection(event.getServer());
         new FlagReloadListener(flagRegistry, eventHandler, flagStore).simpleReload().join();
     }
 
-    private void onAddReloadListener(AddReloadListenerEvent event) {
+    private void onAddReloadListener(@NotNull AddReloadListenerEvent event) {
         event.addListener(new FlagReloadListener(flagRegistry, eventHandler, flagStore));
     }
 

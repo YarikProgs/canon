@@ -1,15 +1,13 @@
 package net.aros.canon.impl.store;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
 import com.mojang.logging.LogUtils;
-import com.mojang.serialization.JsonOps;
 import net.aros.canon.core.db.FlagsDB;
 import net.aros.canon.core.flag.FlagKey;
 import net.aros.canon.core.flag.FlagRegistry;
 import net.aros.canon.core.flag.FlagStore;
 import net.aros.canon.event.FlagHooks;
 import net.aros.canon.tx.Sandbox;
+import net.aros.canon.util.SerializationUtils;
 import net.aros.canon.wrapper.Can;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -17,15 +15,19 @@ import net.minecraft.world.level.storage.LevelResource;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import static net.aros.canon.CanonLibMod.MOD_ID;
 
 public class FlagStoreImpl implements FlagStore {
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final Gson GSON = new Gson();
 
     private final ExecutorService dbExecutor = Executors.newSingleThreadExecutor(r -> new Thread(r, "canon-db"));
     private final FlagsDB db = new FlagsDB();
@@ -37,6 +39,12 @@ public class FlagStoreImpl implements FlagStore {
     public void createConnection(@NotNull MinecraftServer server) {
         db.createConnection(server.getWorldPath(LevelResource.ROOT).resolve(MOD_ID).toAbsolutePath());
         db.initialize();
+    }
+
+    public void closeConnection() {
+        db.closeConnection();
+        flags.clear();
+        ownership.clear();
     }
 
     public CompletableFuture<Map<FlagKey<?>, String>> persistDiff(Diff diff) {
@@ -53,14 +61,11 @@ public class FlagStoreImpl implements FlagStore {
             flags.remove(key);
         }
         for (Map.Entry<FlagKey<?>, String> entry : diff.added().entrySet()) {
-            flags.put(entry.getKey().identifier(), decodeJson(entry.getKey(), entry.getValue()).orElse(entry.getKey().defaultValue()));
-        }
-    }
+            var key = entry.getKey();
+            var flag = SerializationUtils.decodeJson(key, entry.getValue()).orElse(key.defaultValue());
 
-    public void closeConnection() {
-        db.closeConnection();
-        flags.clear();
-        ownership.clear();
+            flags.put(key.identifier(), flag);
+        }
     }
 
     @Override
@@ -99,7 +104,7 @@ public class FlagStoreImpl implements FlagStore {
     public CompletableFuture<Void> commit(@NotNull Map<FlagKey<?>, Object> changes, boolean notifyListeners) {
         Map<ResourceLocation, String> encoded = new HashMap<>();
         for (Map.Entry<FlagKey<?>, Object> entry : changes.entrySet()) {
-            tryEncodeEntryTo(encoded, entry);
+            SerializationUtils.tryEncodeEntryTo(encoded, entry);
         }
 
         return CompletableFuture
@@ -118,39 +123,6 @@ public class FlagStoreImpl implements FlagStore {
 
     public Differ differ() {
         return differ;
-    }
-
-    @SuppressWarnings("unchecked")
-    @NotNull
-    private static Optional<Object> decodeJson(FlagKey<?> key, String json) {
-        JsonElement element = GSON.fromJson(json, JsonElement.class);
-        if (element == null) return Optional.empty();
-
-        var result = key.decode(JsonOps.COMPRESSED, element);
-        if (result.isError()) {
-            LOGGER.error("Failed to load flag \"{}\": {}", key.identifier(), result.error().orElseThrow().message());
-            return Optional.empty();
-        }
-        return (Optional<Object>) result.result();
-    }
-
-    private <T> void tryEncodeEntryTo(Map<ResourceLocation, String> dest, Map.@NotNull Entry<FlagKey<?>, Object> entry) {
-        //noinspection unchecked
-        encodeToJson((FlagKey<T>) entry.getKey(), (T) entry.getValue()).ifPresent(json ->
-                dest.put(entry.getKey().identifier(), json));
-    }
-
-    private static <T> Optional<String> encodeToJson(@NotNull FlagKey<T> key, T value) {
-        var result = key.encode(JsonOps.COMPRESSED, value);
-        if (result.isError()) {
-            LOGGER.error("Failed to encode flag \"{}\": {}", key.identifier(), result.error().orElseThrow().message());
-            return Optional.empty();
-        }
-        return result.result().map(GSON::toJson);
-    }
-
-    private static <T> Optional<String> encodeToJson(@NotNull FlagKey<T> key) {
-        return encodeToJson(key, key.defaultValue());
     }
 
     public class Differ {
@@ -199,7 +171,7 @@ public class FlagStoreImpl implements FlagStore {
         private void addNewKeys(@NotNull Set<FlagKey<?>> keys, Diff result) {
             for (FlagKey<?> key : keys) {
                 if (!flags.containsKey(key.identifier())) {
-                    encodeToJson(key).ifPresent(json -> result.added().put(key, json));
+                    SerializationUtils.encodeToJson(key).ifPresent(json -> result.added().put(key, json));
                 }
             }
         }

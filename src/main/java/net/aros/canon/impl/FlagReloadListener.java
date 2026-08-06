@@ -1,6 +1,7 @@
 package net.aros.canon.impl;
 
 import net.aros.canon.core.flag.FlagKey;
+import net.aros.canon.impl.store.Diff;
 import net.aros.canon.impl.store.FlagStoreImpl;
 import net.aros.canon.event.FlagHooks;
 import net.minecraft.Util;
@@ -27,6 +28,20 @@ public class FlagReloadListener implements PreparableReloadListener {
         this.store = store;
     }
 
+    private void prepare() {
+        eventHandler.clearChangeListeners();
+        eventHandler.unsubscribeAllEvents();
+        List<FlagKey<?>> newKeys = FlagHooks.registerAllKeys();
+        registry.replaceWith(newKeys);
+    }
+
+    private @NotNull CompletableFuture<Diff> persistDiff(Diff diff) {
+        return store.persistDiff(diff).thenApply(values -> {
+            diff.added().putAll(values);
+            return diff;
+        });
+    }
+
     @Override
     @NotNull
     public CompletableFuture<Void> reload(
@@ -34,36 +49,21 @@ public class FlagReloadListener implements PreparableReloadListener {
             ProfilerFiller reloadProfiler, Executor backgroundExecutor, Executor gameExecutor
     ) {
         if (ServerLifecycleHooks.getCurrentServer() == null)
-            return CompletableFuture.runAsync(() -> {}).thenCompose(barrier::wait);
+            return CompletableFuture.<Void>completedFuture(null).thenCompose(barrier::wait);
 
         return CompletableFuture
-                .supplyAsync(() -> {
-                    eventHandler.clearChangeListeners();
-                    eventHandler.unsubscribeAllEvents();
-                    List<FlagKey<?>> newKeys = FlagHooks.registerAllKeys();
-                    registry.replaceWith(newKeys);
-                    return registry;
-                }, gameExecutor)
-                .thenApplyAsync(store.differ()::diff, backgroundExecutor)
-                .thenCompose(diff -> store.persistDiff(diff).thenApply(values -> {
-                    diff.added().putAll(values);
-                    return diff;
-                }))
+                .runAsync(this::prepare, gameExecutor)
+                .thenApplyAsync(v -> store.differ().diff(registry), backgroundExecutor)
+                .thenCompose(this::persistDiff)
                 .thenCompose(barrier::wait)
                 .thenAcceptAsync(store::applyDiff, gameExecutor);
     }
 
     public CompletableFuture<Void> simpleReload() {
-        eventHandler.clearChangeListeners();
-        eventHandler.unsubscribeAllEvents();
-        List<FlagKey<?>> newKeys = FlagHooks.registerAllKeys();
-        registry.replaceWith(newKeys);
+        prepare();
         return CompletableFuture
                 .supplyAsync(() -> store.differ().diff(registry), Util.backgroundExecutor())
-                .thenCompose(diff -> store.persistDiff(diff).thenApply(values -> {
-                    diff.added().putAll(values);
-                    return diff;
-                }))
+                .thenCompose(this::persistDiff)
                 .thenAccept(store::applyDiff);
     }
 }

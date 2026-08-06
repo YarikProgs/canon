@@ -2,7 +2,6 @@ package net.aros.canon.examples;
 
 import com.mojang.serialization.Codec;
 import net.aros.canon.CanonLibMod;
-import net.aros.canon.core.Canon;
 import net.aros.canon.core.flag.FlagKey;
 import net.aros.canon.core.flag.registration.FlagRegistrationEvent;
 import net.aros.canon.wrapper.Can;

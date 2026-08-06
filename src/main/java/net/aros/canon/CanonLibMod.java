@@ -1,7 +1,6 @@
 package net.aros.canon;
 
 import com.mojang.logging.LogUtils;
-import net.aros.canon.core.Canon;
 import net.aros.canon.examples.TestItem;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.IEventBus;
