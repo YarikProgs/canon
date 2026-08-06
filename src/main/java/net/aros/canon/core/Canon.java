@@ -6,15 +6,10 @@ import net.aros.canon.event.FlagEventHandler;
 import net.aros.canon.impl.FlagEventHandlerImpl;
 import net.aros.canon.impl.FlagRegistryImpl;
 import net.aros.canon.impl.FlagReloadListener;
-import net.minecraft.Util;
-import net.minecraft.server.packs.resources.PreparableReloadListener;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.AddReloadListenerEvent;
 import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
-import org.jetbrains.annotations.NotNull;
-
-import java.util.concurrent.CompletableFuture;
 
 public class Canon {
     private static final Canon INSTANCE = new Canon();

@@ -1,10 +1,8 @@
 package net.aros.canon.core.db;
 
 import com.mojang.logging.LogUtils;
+import net.aros.canon.core.flag.FlagKey;
 import net.aros.canon.core.flag.FlagStore;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.level.storage.LevelResource;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
@@ -17,8 +15,6 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
-
-import static net.aros.canon.CanonLibMod.MOD_ID;
 
 @SuppressWarnings("SqlDialectInspection")
 public class FlagsDB {
@@ -42,6 +38,12 @@ public class FlagsDB {
 
     private static final String SQL_DELETE = """
             DELETE FROM %s
+            WHERE key = ?
+            """.formatted(TABLE);
+
+    private static final String SQL_SELECT_BY_KEY = """
+            SELECT key, value
+            FROM %s
             WHERE key = ?
             """.formatted(TABLE);
 
@@ -103,7 +105,9 @@ public class FlagsDB {
         }, Connection::rollback, conn -> conn.setAutoCommit(true));
     }
 
-    public void writeDiff(FlagStore.Diff diff) {
+    public Map<FlagKey<?>, String> writeDiffAndGetNewFlags(FlagStore.Diff diff) {
+        Map<FlagKey<?>, String> loaded = new HashMap<>();
+
         withConnection("writeDiff", conn -> {
             conn.setAutoCommit(false);
 
@@ -116,17 +120,42 @@ public class FlagsDB {
                     statement.executeBatch();
                 }
             }
+
             if (!diff.added().isEmpty()) {
-                try (PreparedStatement statement = conn.prepareStatement(SQL_UPSERT)) {
-                    for (var entry : diff.added().entrySet()) {
-                        statement.setString(1, entry.getKey().key());
-                        statement.setString(2, entry.getValue());
-                        statement.addBatch();
-                    }
-                    statement.executeBatch();
-                }
+                addMissingOnly(conn, diff, loaded);
             }
         }, Connection::rollback, conn -> conn.setAutoCommit(true));
+
+        return loaded;
+    }
+
+    private void addMissingOnly(Connection conn, FlagStore.Diff diff, Map<FlagKey<?>, String> loaded) throws SQLException {
+        Map<FlagKey<?>, String> missing = new HashMap<>(diff.added());
+
+        try (PreparedStatement statement = conn.prepareStatement(SQL_SELECT_BY_KEY)) {
+            for (FlagKey<?> key : diff.added().keySet()) {
+                statement.setString(1, key.key());
+
+                try (var rs = statement.executeQuery()) {
+                    if (rs.next()) {
+                        loaded.put(key, rs.getString("value"));
+                        missing.remove(key);
+                    }
+                }
+            }
+        }
+
+        if (!missing.isEmpty()) {
+            try (PreparedStatement st = conn.prepareStatement(SQL_UPSERT)) {
+                for (var entry : missing.entrySet()) {
+                    st.setString(1, entry.getKey().key());
+                    st.setString(2, entry.getValue());
+                    st.addBatch();
+                }
+
+                st.executeBatch();
+            }
+        }
     }
 
     private void withConnection(

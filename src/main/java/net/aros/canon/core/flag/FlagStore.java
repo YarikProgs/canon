@@ -29,17 +29,7 @@ public class FlagStore {
     private final Map<String, Object> flags = new ConcurrentHashMap<>();
     private final Map<String, Sandbox> ownership = new ConcurrentHashMap<>();
 
-    private void loadAll(@NotNull FlagRegistry flagRegistry) {
-        Map<String, String> raw = db.readAllFlags();
-
-        for (FlagKey<?> key : flagRegistry.allKeys()) {
-            String json = raw.get(key.key());
-            flags.put(key.key(), Optional.ofNullable(json).flatMap(json1 -> decodeJson(key, json1))
-                    .orElseGet(key::defaultValue));
-        }
-    }
-
-    public void createConnection(MinecraftServer server) {
+    public void createConnection(@NotNull MinecraftServer server) {
         db.createConnection(server.getWorldPath(LevelResource.ROOT).resolve(MOD_ID).toAbsolutePath());
         db.initialize();
     }
@@ -96,8 +86,8 @@ public class FlagStore {
         }
     }
 
-    public CompletableFuture<Void> persistDiff(Diff diff) {
-        return CompletableFuture.runAsync(() -> db.writeDiff(diff), dbExecutor);
+    public CompletableFuture<Map<FlagKey<?>, String>> persistDiff(Diff diff) {
+        return CompletableFuture.supplyAsync(() -> db.writeDiffAndGetNewFlags(diff), dbExecutor);
     }
 
     public void applyDiff(@NotNull Diff diff) {
@@ -109,8 +99,8 @@ public class FlagStore {
             ownership.remove(key);
             flags.remove(key);
         }
-        for (FlagKey<?> key : diff.added.keySet()) {
-            flags.put(key.key(), key.defaultValue());
+        for (Map.Entry<FlagKey<?>, String> entry : diff.added.entrySet()) {
+            flags.put(entry.getKey().key(), decodeJson(entry.getKey(), entry.getValue()).orElse(entry.getKey().defaultValue()));
         }
     }
 

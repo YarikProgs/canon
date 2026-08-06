@@ -45,7 +45,10 @@ public class FlagReloadListener implements PreparableReloadListener {
                     return registry;
                 }, gameExecutor)
                 .thenApplyAsync(store::diff, backgroundExecutor)
-                .thenCompose(diff -> store.persistDiff(diff).thenApply(v -> diff))
+                .thenCompose(diff -> store.persistDiff(diff).thenApply(values -> {
+                    diff.added().putAll(values);
+                    return diff;
+                }))
                 .thenCompose(barrier::wait)
                 .thenAcceptAsync(store::applyDiff, gameExecutor);
     }
@@ -57,7 +60,10 @@ public class FlagReloadListener implements PreparableReloadListener {
         registry.replaceWith(newKeys);
         return CompletableFuture
                 .supplyAsync(() -> store.diff(registry), Util.backgroundExecutor())
-                .thenCompose(diff -> store.persistDiff(diff).thenApply(v -> diff))
+                .thenCompose(diff -> store.persistDiff(diff).thenApply(values -> {
+                    diff.added().putAll(values);
+                    return diff;
+                }))
                 .thenAccept(store::applyDiff);
     }
 }
