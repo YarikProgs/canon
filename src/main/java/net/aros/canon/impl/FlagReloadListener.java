@@ -1,10 +1,8 @@
 package net.aros.canon.impl;
 
 import net.aros.canon.core.flag.FlagKey;
-import net.aros.canon.impl.store.Diff;
-import net.aros.canon.impl.store.FlagStoreImpl;
 import net.aros.canon.event.FlagHooks;
-import net.minecraft.Util;
+import net.aros.canon.impl.store.FlagStoreImpl;
 import net.minecraft.server.packs.resources.PreparableReloadListener;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.util.profiling.ProfilerFiller;
@@ -12,34 +10,29 @@ import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.ParametersAreNonnullByDefault;
-import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 @ParametersAreNonnullByDefault
 public class FlagReloadListener implements PreparableReloadListener {
-    private final FlagRegistryImpl registry;
     private final FlagEventHandlerImpl eventHandler;
     private final FlagStoreImpl store;
+    private final FlagTypeRegistryImpl typeRegistry;
 
-    public FlagReloadListener(FlagRegistryImpl registry, FlagEventHandlerImpl eventHandler, FlagStoreImpl store) {
-        this.registry = registry;
+    public FlagReloadListener(FlagEventHandlerImpl eventHandler, FlagStoreImpl store, FlagTypeRegistryImpl typeRegistry) {
         this.eventHandler = eventHandler;
         this.store = store;
+        this.typeRegistry = typeRegistry;
     }
 
-    private void prepare() {
+    private Set<FlagKey<?>> prepare() {
         eventHandler.clearChangeListeners();
         eventHandler.unsubscribeAllEvents();
-        List<FlagKey<?>> newKeys = FlagHooks.registerAllKeys();
-        registry.replaceWith(newKeys);
-    }
-
-    private @NotNull CompletableFuture<Diff> persistDiff(Diff diff) {
-        return store.persistDiff(diff).thenApply(values -> {
-            diff.added().putAll(values);
-            return diff;
-        });
+        typeRegistry.clear();
+        var event = FlagHooks.fireFlagRegistration();
+        typeRegistry.putAll(event.registeredTypes());
+        return event.registeredKeys();
     }
 
     @Override
@@ -52,18 +45,14 @@ public class FlagReloadListener implements PreparableReloadListener {
             return CompletableFuture.<Void>completedFuture(null).thenCompose(barrier::wait);
 
         return CompletableFuture
-                .runAsync(this::prepare, gameExecutor)
-                .thenApplyAsync(v -> store.differ().diff(registry), backgroundExecutor)
-                .thenCompose(this::persistDiff)
+                .supplyAsync(this::prepare, gameExecutor)
+                .thenCompose(store::reconcileKeysInDB)
                 .thenCompose(barrier::wait)
-                .thenAcceptAsync(store::applyDiff, gameExecutor);
+                .thenAcceptAsync(store::reconcileKeysInLive, gameExecutor);
     }
 
     public CompletableFuture<Void> simpleReload() {
-        prepare();
-        return CompletableFuture
-                .supplyAsync(() -> store.differ().diff(registry), Util.backgroundExecutor())
-                .thenCompose(this::persistDiff)
-                .thenAccept(store::applyDiff);
+        return store.reconcileKeysInDB(prepare())
+                .thenAccept(store::reconcileKeysInLive);
     }
 }

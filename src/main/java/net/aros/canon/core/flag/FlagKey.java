@@ -1,40 +1,39 @@
 package net.aros.canon.core.flag;
 
-import com.mojang.serialization.Codec;
-import com.mojang.serialization.DataResult;
+import com.mojang.logging.LogUtils;
 import com.mojang.serialization.DynamicOps;
+import net.aros.canon.core.flag.type.FlagType;
 import net.minecraft.resources.ResourceLocation;
+import org.slf4j.Logger;
 
-public class FlagKey<T> {
-    private final ResourceLocation key;
-    private final Class<T> type;
-    private final Codec<T> codec;
-    private final T defaultValue;
+import java.util.Optional;
 
-    public FlagKey(ResourceLocation key, Class<T> type, Codec<T> codec, T defaultValue) {
-        this.key = key;
-        this.type = type;
-        this.codec = codec;
-        this.defaultValue = defaultValue;
+public record FlagKey<T>(ResourceLocation identifier, FlagType<T> type) {
+    private static final Logger LOGGER = LogUtils.getLogger();
+
+    public <U> Optional<U> encodeDefault(DynamicOps<U> ops) {
+        return encode(ops, type.defaultValue());
     }
 
-    public <U> DataResult<U> encode(DynamicOps<U> ops, T value) {
-        return codec.encodeStart(ops, value);
+    public <U> Optional<U> encode(DynamicOps<U> ops, T value) {
+        var result = type.codec().encodeStart(ops, value);
+        if (result.isError()) {
+            LOGGER.error("Failed to encode flag '{}': {}",
+                    identifier, result.error().orElseThrow().message());
+        }
+        return result.result();
     }
 
-    public <U> DataResult<T> decode(DynamicOps<U> ops, U input) {
-        return codec.parse(ops, input);
+    public <U> T parseOrDefault(DynamicOps<U> ops, U input) {
+        return parse(ops, input).orElse(type.defaultValue());
     }
 
-    public ResourceLocation identifier() {
-        return key;
-    }
-
-    public Class<T> type() {
-        return type;
-    }
-
-    public T defaultValue() {
-        return defaultValue;
+    public <U> Optional<T> parse(DynamicOps<U> ops, U input) {
+        var result = type.codec().parse(ops, input);
+        if (result.isError()) {
+            LOGGER.error("Failed to parse flag '{}': {}",
+                    identifier, result.error().orElseThrow().message());
+        }
+        return result.result();
     }
 }

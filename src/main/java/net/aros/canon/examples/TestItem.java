@@ -1,9 +1,9 @@
 package net.aros.canon.examples;
 
-import com.mojang.serialization.Codec;
 import net.aros.canon.CanonLibMod;
 import net.aros.canon.core.flag.FlagKey;
-import net.aros.canon.core.flag.registration.FlagRegistrationEvent;
+import net.aros.canon.core.flag.type.BuiltinFlagTypes;
+import net.aros.canon.event.custom.FlagRegistrationEvent;
 import net.aros.canon.wrapper.Can;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -32,8 +32,9 @@ public class TestItem extends Item {
     }
 
     public static boolean usingLegacy = true;
-    public static final FlagKey<Boolean> PLAYER_DIED_LEGACY = new FlagKey<>(CanonLibMod.id("died"), Boolean.class, Codec.BOOL, false);
-    public static final FlagKey<Integer> PLAYER_DIED = new FlagKey<>(CanonLibMod.id("died"), Integer.class, Codec.INT, 0);
+
+    public static final FlagKey<Boolean> PLAYER_DIED_LEGACY = new FlagKey<>(CanonLibMod.id("died"), BuiltinFlagTypes.BOOL);
+    public static final FlagKey<Integer> PLAYER_DIED = new FlagKey<>(CanonLibMod.id("died"), BuiltinFlagTypes.INT);
 
     @Override
     @NotNull
@@ -56,7 +57,7 @@ public class TestItem extends Item {
     @SubscribeEvent
     public static void onFlagRegistration(FlagRegistrationEvent e) {
         if (usingLegacy) {
-            e.register(PLAYER_DIED_LEGACY)
+            e.registerFlag(PLAYER_DIED_LEGACY)
                     .addEventListener(LivingDeathEvent.class, (key, flag, event) -> {
                         if (event.getEntity() instanceof ServerPlayer) Can.set(key, true);
                     })
@@ -72,7 +73,7 @@ public class TestItem extends Item {
                         }
                     });
         } else {
-            e.register(PLAYER_DIED)
+            e.registerFlag(PLAYER_DIED)
                     .addEventListener(LivingDeathEvent.class, (key, flag, event) -> {
                         if (event.getEntity() instanceof ServerPlayer) Can.set(key, flag + 1);
                     })

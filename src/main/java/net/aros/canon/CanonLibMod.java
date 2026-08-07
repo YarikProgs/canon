@@ -2,6 +2,11 @@ package net.aros.canon;
 
 import com.mojang.logging.LogUtils;
 import net.aros.canon.examples.TestItem;
+import net.aros.canon.migration.custom.Char2StringMigrator;
+import net.aros.canon.migration.custom.NumBoolMigrator;
+import net.aros.canon.migration.custom.NumNumMigrator;
+import net.aros.canon.migration.custom.StringRLMigrator;
+import net.aros.canon.wrapper.Can;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
@@ -24,11 +29,10 @@ public class CanonLibMod {
 
         ITEMS.register(bus);
 
-        // touching event registration inside of class
-        try {
-            Class.forName("net.aros.canon.core.Canon");
-        } catch (ClassNotFoundException ignore) {
-        }
+        Can.registerMigrator(new NumNumMigrator());
+        Can.registerMigrator(new NumBoolMigrator());
+        Can.registerMigrator(new StringRLMigrator());
+        Can.registerMigrator(new Char2StringMigrator());
     }
 
     @Contract("_ -> new")

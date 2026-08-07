@@ -6,11 +6,13 @@ import net.aros.canon.event.ChangeEvent;
 import net.aros.canon.impl.EventSubscriptionImpl;
 import net.aros.canon.wrapper.Can;
 import net.neoforged.bus.api.Event;
+import org.jetbrains.annotations.ApiStatus;
 
 public class FlagRegistration<T> {
     private final FlagKey<T> flagKey;
 
-    FlagRegistration(FlagKey<T> flagKey) {
+    @ApiStatus.Internal
+    public FlagRegistration(FlagKey<T> flagKey) {
         this.flagKey = flagKey;
     }
 

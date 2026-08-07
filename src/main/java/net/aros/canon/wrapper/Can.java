@@ -4,6 +4,7 @@ import net.aros.canon.core.Canon;
 import net.aros.canon.core.flag.FlagKey;
 import net.aros.canon.impl.SandboxImpl;
 import net.aros.canon.impl.TransactionImpl;
+import net.aros.canon.migration.FlagMigrator;
 import net.aros.canon.tx.Sandbox;
 import net.aros.canon.tx.Transaction;
 import net.minecraft.server.MinecraftServer;
@@ -14,6 +15,10 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Objects;
 
 public class Can {
+    public static void registerMigrator(FlagMigrator migrator) {
+        Canon.get().migratorRegistry().register(migrator);
+    }
+
     @Contract("_ -> new")
     public static @NotNull Sandbox sandbox(String name) {
         return new SandboxImpl(Canon.get().flagStore(), name);
