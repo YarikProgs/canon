@@ -3,8 +3,8 @@ package net.aros.canon.impl;
 import com.mojang.logging.LogUtils;
 import net.aros.canon.core.flag.FlagKey;
 import net.aros.canon.core.flag.FlagStore;
-import net.aros.canon.impl.store.FlagStoreImpl;
 import net.aros.canon.event.FlagHooks;
+import net.aros.canon.impl.store.FlagStoreImpl;
 import net.aros.canon.tx.Sandbox;
 import org.slf4j.Logger;
 

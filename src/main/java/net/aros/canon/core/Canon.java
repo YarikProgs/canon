@@ -2,13 +2,13 @@ package net.aros.canon.core;
 
 import net.aros.canon.core.flag.FlagStore;
 import net.aros.canon.core.flag.type.FlagTypeRegistry;
-import net.aros.canon.impl.FlagMigratorRegistryImpl;
-import net.aros.canon.impl.FlagTypeRegistryImpl;
-import net.aros.canon.migration.FlagMigratorRegistry;
 import net.aros.canon.event.FlagEventHandler;
 import net.aros.canon.impl.FlagEventHandlerImpl;
+import net.aros.canon.impl.FlagMigratorRegistryImpl;
 import net.aros.canon.impl.FlagReloadListener;
+import net.aros.canon.impl.FlagTypeRegistryImpl;
 import net.aros.canon.impl.store.FlagStoreImpl;
+import net.aros.canon.migration.FlagMigratorRegistry;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.AddReloadListenerEvent;
 import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;

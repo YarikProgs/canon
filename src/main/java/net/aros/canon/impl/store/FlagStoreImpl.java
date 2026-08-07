@@ -1,6 +1,5 @@
 package net.aros.canon.impl.store;
 
-import com.mojang.logging.LogUtils;
 import com.mojang.serialization.JsonOps;
 import net.aros.canon.core.db.FlagsDB;
 import net.aros.canon.core.flag.FlagKey;
@@ -13,7 +12,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.storage.LevelResource;
 import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -26,8 +24,6 @@ import java.util.concurrent.Executors;
 import static net.aros.canon.CanonLibMod.MOD_ID;
 
 public class FlagStoreImpl implements FlagStore {
-    private static final Logger LOGGER = LogUtils.getLogger();
-
     private final ExecutorService dbExecutor = Executors.newSingleThreadExecutor(r -> new Thread(r, "canon-db"));
     private final FlagsDB db = new FlagsDB();
 
@@ -95,9 +91,9 @@ public class FlagStoreImpl implements FlagStore {
         Map<FlagKey<?>, String> encoded = new HashMap<>();
         for (Map.Entry<FlagKey<?>, Object> entry : changes.entrySet()) {
             //noinspection unchecked
-            ((FlagKey<Object>) entry.getKey()).encode(JsonOps.COMPRESSED, entry.getValue()).ifPresent(result -> {
-                encoded.put(entry.getKey(), GsonHelper.toString(result));
-            });
+            ((FlagKey<Object>) entry.getKey()).encode(JsonOps.COMPRESSED, entry.getValue()).ifPresent(result ->
+                encoded.put(entry.getKey(), GsonHelper.toString(result))
+            );
         }
 
         return CompletableFuture
