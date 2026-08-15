@@ -36,6 +36,15 @@ public class BuiltinFlagTypes {
 
     @SubscribeEvent
     public static void onFlagRegister(FlagRegistrationEvent event) {
-        event.registerTypes(BOOL, CHAR, BYTE, SHORT, INT, LONG, FLOAT, DOUBLE, STRING, OPT_RESOURCE_LOCATION);
+        event.registerType(BOOL);
+        event.registerType(CHAR);
+        event.registerType(BYTE);
+        event.registerType(SHORT);
+        event.registerType(INT);
+        event.registerType(LONG);
+        event.registerType(FLOAT);
+        event.registerType(DOUBLE);
+        event.registerType(STRING);
+        event.registerType(OPT_RESOURCE_LOCATION);
     }
 }

@@ -1,15 +1,15 @@
 package net.aros.canon.impl;
 
+import net.aros.canon.core.Canon;
 import net.aros.canon.core.flag.FlagKey;
 import net.aros.canon.core.flag.FlagStore;
+import net.aros.canon.core.tx.Transaction;
 import net.aros.canon.impl.store.FlagStoreImpl;
-import net.aros.canon.tx.Transaction;
-
-import java.util.HashMap;
-import java.util.Map;
+import net.aros.canon.util.FlagMap;
+import net.aros.canon.util.ScopedFlagKey;
 
 public class TransactionImpl implements Transaction {
-    private final Map<FlagKey<?>, Object> pendingChanges = new HashMap<>();
+    private final FlagMap pendingChanges = new FlagMap();
     private final FlagStore store;
 
     public TransactionImpl(FlagStore store) {
@@ -18,17 +18,17 @@ public class TransactionImpl implements Transaction {
 
     @SuppressWarnings("unchecked")
     @Override
-    public <T> T get(FlagKey<T> key) {
-        return pendingChanges.containsKey(key) ? (T) pendingChanges.get(key) : store.get(key);
+    public <S, T> T get(FlagKey<S, T> key, S scope) {
+        return pendingChanges.containsKey(new ScopedFlagKey<>(key, scope)) ? (T) pendingChanges.get(key, scope) : store.get(key, scope);
     }
 
     @Override
-    public <T> void set(FlagKey<T> key, T value) {
-        pendingChanges.put(key, value);
+    public <S, T> void set(FlagKey<S, T> key, S scope, T value) {
+        pendingChanges.put(key, scope, value);
     }
 
     @Override
     public void commit() {
-        ((FlagStoreImpl) store).commit(pendingChanges, true);
+        ((FlagStoreImpl) store).commit(pendingChanges, true, Canon.get().db());
     }
 }

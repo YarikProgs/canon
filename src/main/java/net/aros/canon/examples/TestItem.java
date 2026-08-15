@@ -2,11 +2,13 @@ package net.aros.canon.examples;
 
 import net.aros.canon.CanonLibMod;
 import net.aros.canon.core.flag.FlagKey;
+import net.aros.canon.core.flag.scope.BuiltinScopeTypes;
 import net.aros.canon.core.flag.type.BuiltinFlagTypes;
 import net.aros.canon.event.custom.FlagRegistrationEvent;
 import net.aros.canon.wrapper.Can;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Unit;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
@@ -22,6 +24,8 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 
+import java.util.UUID;
+
 import static net.aros.canon.CanonLibMod.MOD_ID;
 
 @ParametersAreNonnullByDefault
@@ -33,8 +37,8 @@ public class TestItem extends Item {
 
     public static boolean usingLegacy = true;
 
-    public static final FlagKey<Boolean> PLAYER_DIED_LEGACY = new FlagKey<>(CanonLibMod.id("died"), BuiltinFlagTypes.BOOL);
-    public static final FlagKey<Integer> PLAYER_DIED = new FlagKey<>(CanonLibMod.id("died"), BuiltinFlagTypes.INT);
+    public static final FlagKey<UUID, Boolean> PLAYER_DIED_LEGACY = new FlagKey<>(BuiltinScopeTypes.ENTITY, CanonLibMod.id("died"), BuiltinFlagTypes.BOOL);
+    public static final FlagKey<UUID, Integer> PLAYER_DIED = new FlagKey<>(BuiltinScopeTypes.ENTITY, CanonLibMod.id("died"), BuiltinFlagTypes.INT);
 
     @Override
     @NotNull
@@ -44,13 +48,13 @@ public class TestItem extends Item {
             if (player.isShiftKeyDown()) {
                 usingLegacy = !usingLegacy;
             } else {
-                player.sendSystemMessage(Component.literal(Can.get(deathsFlag()) + " смертей"));
+                player.sendSystemMessage(Component.literal(Can.get(playerDiedFlag(), player.getUUID()) + " смертей"));
             }
         }
         return InteractionResultHolder.success(stack);
     }
 
-    public static FlagKey<?> deathsFlag() {
+    public static FlagKey<UUID, ?> playerDiedFlag() {
         return usingLegacy ? PLAYER_DIED_LEGACY : PLAYER_DIED;
     }
 
@@ -58,35 +62,31 @@ public class TestItem extends Item {
     public static void onFlagRegistration(FlagRegistrationEvent e) {
         if (usingLegacy) {
             e.registerFlag(PLAYER_DIED_LEGACY)
-                    .addEventListener(LivingDeathEvent.class, (key, flag, event) -> {
-                        if (event.getEntity() instanceof ServerPlayer) Can.set(key, true);
+                    .addEventListener(LivingDeathEvent.class, (key, event) -> {
+                        if (event.getEntity() instanceof ServerPlayer) Can.set(key, event.getEntity().getUUID(), true);
                     })
-                    .addEventListener(EntityJoinLevelEvent.class, (key, flag, event) -> {
+                    .addEventListener(EntityJoinLevelEvent.class, (key, event) -> {
                         if (event.getEntity() instanceof ServerPlayer player) {
-                            player.sendSystemMessage(Component.literal(flag ? "Ты умирал хотя бы раз" : "Ты не умирал"));
+                            player.sendSystemMessage(Component.literal(Can.get(key, event.getEntity().getUUID()) ? "Ты умирал хотя бы раз" : "Ты не умирал"));
                         }
                     })
-                    .addChangeListener((before, current) -> {
+                    .addChangeListener((scope, before, current) -> {
                         Component msg = Component.literal("Теперь ты " + (current ? "" : "не ") + "умирал");
-                        for (ServerPlayer player : Can.server().getPlayerList().getPlayers()) {
-                            player.sendSystemMessage(msg);
-                        }
+                        Can.server().getPlayerList().getPlayer(scope).sendSystemMessage(msg);
                     });
         } else {
             e.registerFlag(PLAYER_DIED)
-                    .addEventListener(LivingDeathEvent.class, (key, flag, event) -> {
-                        if (event.getEntity() instanceof ServerPlayer) Can.set(key, flag + 1);
+                    .addEventListener(LivingDeathEvent.class, (key, event) -> {
+                        if (event.getEntity() instanceof ServerPlayer) Can.set(key, event.getEntity().getUUID(), Can.get(key, event.getEntity().getUUID()) + 1);
                     })
-                    .addEventListener(EntityJoinLevelEvent.class, (key, flag, event) -> {
+                    .addEventListener(EntityJoinLevelEvent.class, (key, event) -> {
                         if (event.getEntity() instanceof ServerPlayer player) {
-                            player.sendSystemMessage(Component.literal(flag == 0 ? "Ты не умирал" : "Ты умирал хотя бы раз"));
+                            player.sendSystemMessage(Component.literal(Can.get(key, player.getUUID()) == 0 ? "Ты не умирал" : "Ты умирал хотя бы раз"));
                         }
                     })
-                    .addChangeListener((before, current) -> {
+                    .addChangeListener((scope, before, current) -> {
                         Component msg = Component.literal("Теперь у тебя ").append(String.valueOf(current)).append(" смертей");
-                        for (ServerPlayer player : Can.server().getPlayerList().getPlayers()) {
-                            player.sendSystemMessage(msg);
-                        }
+                        Can.server().getPlayerList().getPlayer(scope).sendSystemMessage(msg);
                     });
         }
     }

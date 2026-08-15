@@ -1,8 +1,14 @@
 package net.aros.canon.impl;
 
+import net.aros.canon.core.db.FlagsDB;
 import net.aros.canon.core.flag.FlagKey;
+import net.aros.canon.core.flag.scope.ScopeType;
+import net.aros.canon.core.flag.type.FlagType;
 import net.aros.canon.event.FlagHooks;
 import net.aros.canon.impl.store.FlagStoreImpl;
+import net.aros.canon.reconciliation.Reconciler;
+import net.aros.canon.registry.MutableRegistry;
+import net.aros.canon.util.FlagMap;
 import net.minecraft.server.packs.resources.PreparableReloadListener;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.util.profiling.ProfilerFiller;
@@ -18,21 +24,34 @@ import java.util.concurrent.Executor;
 public class FlagReloadListener implements PreparableReloadListener {
     private final FlagEventHandlerImpl eventHandler;
     private final FlagStoreImpl store;
-    private final FlagTypeRegistryImpl typeRegistry;
+    private final MutableRegistry<FlagType<?>> typeRegistry;
+    private final MutableRegistry<ScopeType<?>> scopeRegistry;
+    private final FlagsDB db;
 
-    public FlagReloadListener(FlagEventHandlerImpl eventHandler, FlagStoreImpl store, FlagTypeRegistryImpl typeRegistry) {
+    public FlagReloadListener(FlagEventHandlerImpl eventHandler, FlagStoreImpl store, MutableRegistry<FlagType<?>> typeRegistry, MutableRegistry<ScopeType<?>> scopeRegistry, FlagsDB db) {
         this.eventHandler = eventHandler;
         this.store = store;
         this.typeRegistry = typeRegistry;
+        this.scopeRegistry = scopeRegistry;
+        this.db = db;
     }
 
-    private Set<FlagKey<?>> prepare() {
+    private Set<FlagKey<?, ?>> prepare() {
         eventHandler.clearChangeListeners();
         eventHandler.unsubscribeAllEvents();
-        typeRegistry.clear();
-        var event = FlagHooks.fireFlagRegistration();
-        typeRegistry.putAll(event.registeredTypes());
+        var event = FlagHooks.fireFlagRegistration();;
+        typeRegistry.replaceWith(event.registeredTypes());
+        scopeRegistry.replaceWith(event.registeredScopeTypes());
         return event.registeredKeys();
+    }
+
+    private CompletableFuture<FlagMap> selectReconcileAndPersist(Set<FlagKey<?, ?>> newKeys) {
+        return CompletableFuture.supplyAsync(() -> {
+            FlagMap currentMap = db.selectAll();
+            var result = new Reconciler(newKeys, currentMap).reconcileKeys();
+            db.persist(result.persist());
+            return result.newMap();
+        }, db.executor());
     }
 
     @Override
@@ -46,13 +65,12 @@ public class FlagReloadListener implements PreparableReloadListener {
 
         return CompletableFuture
                 .supplyAsync(this::prepare, gameExecutor)
-                .thenCompose(store::reconcileKeysInDB)
+                .thenCompose(this::selectReconcileAndPersist)
                 .thenCompose(barrier::wait)
-                .thenAcceptAsync(store::reconcileKeysInLive, gameExecutor);
+                .thenAcceptAsync(store::replaceWith, gameExecutor);
     }
 
     public CompletableFuture<Void> simpleReload() {
-        return store.reconcileKeysInDB(prepare())
-                .thenAccept(store::reconcileKeysInLive);
+        return selectReconcileAndPersist(prepare()).thenAccept(store::replaceWith);
     }
 }

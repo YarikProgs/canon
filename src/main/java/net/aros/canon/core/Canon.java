@@ -1,14 +1,16 @@
 package net.aros.canon.core;
 
+import net.aros.canon.core.db.FlagsDB;
 import net.aros.canon.core.flag.FlagStore;
+import net.aros.canon.core.flag.scope.ScopeType;
+import net.aros.canon.core.flag.type.FlagType;
 import net.aros.canon.core.flag.type.FlagTypeRegistry;
 import net.aros.canon.event.FlagEventHandler;
-import net.aros.canon.impl.FlagEventHandlerImpl;
-import net.aros.canon.impl.FlagMigratorRegistryImpl;
-import net.aros.canon.impl.FlagReloadListener;
-import net.aros.canon.impl.FlagTypeRegistryImpl;
+import net.aros.canon.impl.*;
 import net.aros.canon.impl.store.FlagStoreImpl;
 import net.aros.canon.migration.FlagMigratorRegistry;
+import net.aros.canon.registry.MutableRegistry;
+import net.aros.canon.registry.Registry;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.AddReloadListenerEvent;
 import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;
@@ -28,8 +30,10 @@ public class Canon {
         NeoForge.EVENT_BUS.addListener(this::onServerAboutToStart);
     }
 
+    private final FlagsDB db = new FlagsDB();
     private final FlagStoreImpl store = new FlagStoreImpl();
-    private final FlagTypeRegistryImpl typeRegistry = new FlagTypeRegistryImpl();
+    private final MutableRegistry<FlagType<?>> typeRegistry = new RegistryImpl<>();
+    private final MutableRegistry<ScopeType<?>> scopeRegistry = new RegistryImpl<>();
     private final FlagEventHandlerImpl eventHandler = new FlagEventHandlerImpl();
     private final FlagMigratorRegistry migratorRegistry = new FlagMigratorRegistryImpl();
 
@@ -37,8 +41,12 @@ public class Canon {
         return store;
     }
 
-    public FlagTypeRegistry flagTypeRegistry() {
+    public Registry<FlagType<?>> flagTypeRegistry() {
         return typeRegistry;
+    }
+
+    public Registry<ScopeType<?>> scopeTypeRegistry() {
+        return scopeRegistry;
     }
 
     public FlagEventHandler flagEventHandler() {
@@ -49,16 +57,20 @@ public class Canon {
         return migratorRegistry;
     }
 
+    public FlagsDB db() {
+        return db;
+    }
+
     private void onServerAboutToStart(@NotNull ServerAboutToStartEvent event) {
-        store.createConnection(event.getServer());
-        new FlagReloadListener(eventHandler, store, typeRegistry).simpleReload().join();
+        store.createConnection(event.getServer(), db);
+        new FlagReloadListener(eventHandler, store, typeRegistry, scopeRegistry, db).simpleReload().join();
     }
 
     private void onAddReloadListener(@NotNull AddReloadListenerEvent event) {
-        event.addListener(new FlagReloadListener(eventHandler, store, typeRegistry));
+        event.addListener(new FlagReloadListener(eventHandler, store, typeRegistry, scopeRegistry, db));
     }
 
     private void onServerShutdown(ServerStoppedEvent event) {
-        store.closeConnection();
+        store.closeConnection(db);
     }
 }

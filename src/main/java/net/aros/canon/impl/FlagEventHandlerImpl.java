@@ -13,18 +13,18 @@ import java.util.Collection;
 import java.util.List;
 
 public class FlagEventHandlerImpl implements FlagEventHandler {
-    private final Multimap<FlagKey<?>, ChangeEvent<?>> eventListeners = ArrayListMultimap.create();
+    private final Multimap<FlagKey<?, ?>, ChangeEvent<?, ?>> eventListeners = ArrayListMultimap.create();
     private final List<EventSubscription> subscriptions = new ArrayList<>();
 
     @Override
-    public <T> void addChangeListener(@NotNull FlagKey<T> flagKey, ChangeEvent<T> listener) {
+    public <S, T> void addChangeListener(@NotNull FlagKey<S, T> flagKey, ChangeEvent<S, T> listener) {
         eventListeners.put(flagKey, listener);
     }
 
     @Override
-    public <T> Collection<ChangeEvent<T>> getChangeListeners(@NotNull FlagKey<T> flagKey) {
+    public <S, T> Collection<ChangeEvent<S, T>> getChangeListeners(@NotNull FlagKey<S, T> flagKey) {
         //noinspection unchecked
-        return (Collection<ChangeEvent<T>>) (Object) eventListeners.get(flagKey);
+        return (Collection<ChangeEvent<S, T>>) (Object) eventListeners.get(flagKey);
     }
 
     @Override

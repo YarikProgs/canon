@@ -1,18 +1,20 @@
 package net.aros.canon.core.flag;
 
-import net.aros.canon.tx.Sandbox;
-import org.jetbrains.annotations.NotNull;
+import net.aros.canon.core.tx.Sandbox;
+import org.jetbrains.annotations.Nullable;
 
+import javax.annotation.ParametersAreNonnullByDefault;
+
+@ParametersAreNonnullByDefault
 public interface FlagStore {
-    <T> void set(FlagKey<T> key, T value);
+    <S, T> void set(FlagKey<S, T> key, S scope, T value);
 
-    <T> void setLive(@NotNull FlagKey<T> key, T value);
+    <S, T> void setLive(FlagKey<S, T> key, S scope, T value);
 
-    <T> T get(@NotNull FlagKey<T> key);
+    <S, T> T get(FlagKey<S, T> key, S scope);
 
-    void setOwnership(@NotNull FlagKey<?> key, Sandbox sandbox);
+    <S> void setOwner(FlagKey<S, ?> key, S scope, @Nullable Sandbox sandbox);
 
-    void removeOwnership(@NotNull FlagKey<?> key, Sandbox sandbox);
-
-    Sandbox getOwner(@NotNull FlagKey<?> key);
+    @Nullable
+    <S> Sandbox getOwner(FlagKey<S, ?> key, S scope);
 }

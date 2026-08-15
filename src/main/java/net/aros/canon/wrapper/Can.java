@@ -5,8 +5,8 @@ import net.aros.canon.core.flag.FlagKey;
 import net.aros.canon.impl.SandboxImpl;
 import net.aros.canon.impl.TransactionImpl;
 import net.aros.canon.migration.FlagMigrator;
-import net.aros.canon.tx.Sandbox;
-import net.aros.canon.tx.Transaction;
+import net.aros.canon.core.tx.Sandbox;
+import net.aros.canon.core.tx.Transaction;
 import net.minecraft.server.MinecraftServer;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.jetbrains.annotations.Contract;
@@ -29,12 +29,12 @@ public class Can {
         return new TransactionImpl(Canon.get().flagStore());
     }
 
-    public static <T> T get(FlagKey<T> flagKey) {
-        return Canon.get().flagStore().get(flagKey);
+    public static <S, T> T get(FlagKey<S, T> flagKey, S scope) {
+        return Canon.get().flagStore().get(flagKey, scope);
     }
 
-    public static <T> void set(FlagKey<T> flagKey, T flag) {
-        Canon.get().flagStore().set(flagKey, flag);
+    public static <S, T> void set(FlagKey<S, T> flagKey, S scope, T flag) {
+        Canon.get().flagStore().set(flagKey, scope, flag);
     }
 
     @NotNull

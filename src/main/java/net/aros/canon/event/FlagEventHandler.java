@@ -7,9 +7,9 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Collection;
 
 public interface FlagEventHandler {
-    <T> void addChangeListener(@NotNull FlagKey<T> flagKey, ChangeEvent<T> listener);
+    <S, T> void addChangeListener(@NotNull FlagKey<S, T> flagKey, ChangeEvent<S, T> listener);
 
-    <T> Collection<ChangeEvent<T>> getChangeListeners(@NotNull FlagKey<T> flagKey);
+    <S, T> Collection<ChangeEvent<S, T>> getChangeListeners(@NotNull FlagKey<S, T> flagKey);
 
     void subscribeEvent(EventSubscription eventSubscription);
 }
