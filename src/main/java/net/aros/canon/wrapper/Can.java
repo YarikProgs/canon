@@ -2,11 +2,11 @@ package net.aros.canon.wrapper;
 
 import net.aros.canon.core.Canon;
 import net.aros.canon.core.flag.FlagKey;
+import net.aros.canon.core.tx.Sandbox;
+import net.aros.canon.core.tx.Transaction;
 import net.aros.canon.impl.SandboxImpl;
 import net.aros.canon.impl.TransactionImpl;
 import net.aros.canon.migration.FlagMigrator;
-import net.aros.canon.core.tx.Sandbox;
-import net.aros.canon.core.tx.Transaction;
 import net.minecraft.server.MinecraftServer;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.jetbrains.annotations.Contract;

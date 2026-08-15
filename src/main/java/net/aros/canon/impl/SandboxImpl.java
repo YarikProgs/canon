@@ -6,7 +6,6 @@ import net.aros.canon.core.flag.FlagKey;
 import net.aros.canon.core.flag.FlagStore;
 import net.aros.canon.core.tx.Sandbox;
 import net.aros.canon.event.FlagHooks;
-import net.aros.canon.impl.store.FlagStoreImpl;
 import net.aros.canon.util.FlagMap;
 import net.aros.canon.util.ScopedFlagKey;
 import org.slf4j.Logger;

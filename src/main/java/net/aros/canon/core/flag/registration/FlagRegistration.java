@@ -4,7 +4,6 @@ import net.aros.canon.core.Canon;
 import net.aros.canon.core.flag.FlagKey;
 import net.aros.canon.event.ChangeEvent;
 import net.aros.canon.impl.EventSubscriptionImpl;
-import net.aros.canon.wrapper.Can;
 import net.neoforged.bus.api.Event;
 import org.jetbrains.annotations.ApiStatus;
 

@@ -8,7 +8,6 @@ import net.aros.canon.event.custom.FlagRegistrationEvent;
 import net.aros.canon.wrapper.Can;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.Unit;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
@@ -23,7 +22,6 @@ import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.ParametersAreNonnullByDefault;
-
 import java.util.UUID;
 
 import static net.aros.canon.CanonLibMod.MOD_ID;

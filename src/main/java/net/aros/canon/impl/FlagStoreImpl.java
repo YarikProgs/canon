@@ -1,4 +1,4 @@
-package net.aros.canon.impl.store;
+package net.aros.canon.impl;
 
 import net.aros.canon.core.Canon;
 import net.aros.canon.core.db.FlagsDB;

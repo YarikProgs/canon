@@ -5,7 +5,6 @@ import net.aros.canon.core.flag.FlagKey;
 import net.aros.canon.core.flag.scope.ScopeType;
 import net.aros.canon.core.flag.type.FlagType;
 import net.aros.canon.event.FlagHooks;
-import net.aros.canon.impl.store.FlagStoreImpl;
 import net.aros.canon.reconciliation.Reconciler;
 import net.aros.canon.registry.MutableRegistry;
 import net.aros.canon.util.FlagMap;
