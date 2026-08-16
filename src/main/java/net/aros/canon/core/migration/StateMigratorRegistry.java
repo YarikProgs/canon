@@ -1,4 +1,4 @@
-package net.aros.canon.migration;
+package net.aros.canon.core.migration;
 
 import net.aros.canon.core.state.type.StateType;
 

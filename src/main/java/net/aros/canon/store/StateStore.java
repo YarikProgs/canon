@@ -1,5 +1,6 @@
-package net.aros.canon.core.state;
+package net.aros.canon.store;
 
+import net.aros.canon.core.state.StateKey;
 import net.aros.canon.core.tx.Sandbox;
 import org.jetbrains.annotations.Nullable;
 

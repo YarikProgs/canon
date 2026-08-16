@@ -1,4 +1,4 @@
-package net.aros.canon.core.db;
+package net.aros.canon.impl;
 
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.DataResult;
@@ -7,9 +7,10 @@ import net.aros.canon.core.Canon;
 import net.aros.canon.core.state.StateKey;
 import net.aros.canon.core.state.scope.ScopeType;
 import net.aros.canon.core.state.type.StateType;
-import net.aros.canon.util.StateMap;
+import net.aros.canon.db.StatesDB;
 import net.aros.canon.util.GsonHelper;
 import net.aros.canon.util.ScopedStateKey;
+import net.aros.canon.util.StateMap;
 import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -23,7 +24,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 @SuppressWarnings("SqlDialectInspection")
-public class StatesDB {
+public class StatesDBSqLiteImpl implements StatesDB {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final String FILENAME = "states.db";
     private static final String TABLE = "states";
@@ -49,9 +50,10 @@ public class StatesDB {
 
     private static final String SQL_SELECT_ALL = "SELECT * FROM %s".formatted(TABLE);
 
-    private final ExecutorService dbExecutor = Executors.newSingleThreadExecutor(r -> new Thread(r, "canon-db"));
+    private final ExecutorService dbExecutor = Executors.newSingleThreadExecutor(r -> new Thread(r, "states-db"));
     private Connection connection;
 
+    @Override
     public void createConnection(Path dbPath) {
         try {
             Files.createDirectories(dbPath);
@@ -66,6 +68,7 @@ public class StatesDB {
         }
     }
 
+    @Override
     public void initialize() {
         withConnection("initialize", conn -> {
             try (var st = conn.createStatement()) {
@@ -74,10 +77,12 @@ public class StatesDB {
         });
     }
 
+    @Override
     public void closeConnection() {
         withConnection("closeConnection", Connection::close);
     }
 
+    @Override
     public StateMap selectAll() {
         StateMap map = new StateMap();
 
@@ -107,6 +112,7 @@ public class StatesDB {
         return map;
     }
 
+    @Override
     @SuppressWarnings({"rawtypes","unchecked"})
     public void persist(StateMap map) {
         withConnection("persist", conn -> {

@@ -1,8 +1,8 @@
-package net.aros.canon.migration.custom;
+package net.aros.canon.core.migration.custom;
 
+import net.aros.canon.core.migration.StateMigrator;
 import net.aros.canon.core.state.type.BuiltinStateTypes;
 import net.aros.canon.core.state.type.StateType;
-import net.aros.canon.migration.StateMigrator;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;

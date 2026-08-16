@@ -5,14 +5,14 @@ import com.google.common.collect.Multimap;
 import net.aros.canon.core.state.StateKey;
 import net.aros.canon.core.state.registration.EventSubscription;
 import net.aros.canon.event.ChangeEvent;
-import net.aros.canon.event.StateEventHandler;
+import net.aros.canon.event.MutableStateEventHandler;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-public class StateEventHandlerImpl implements StateEventHandler {
+public class StateEventHandlerImpl implements MutableStateEventHandler {
     private final Multimap<StateKey<?, ?>, ChangeEvent<?, ?>> eventListeners = ArrayListMultimap.create();
     private final List<EventSubscription> subscriptions = new ArrayList<>();
 
@@ -32,11 +32,13 @@ public class StateEventHandlerImpl implements StateEventHandler {
         subscriptions.add(subscription);
     }
 
+    @Override
     public void unsubscribeAllEvents() {
         subscriptions.forEach(EventSubscription::unsubscribe);
         subscriptions.clear();
     }
 
+    @Override
     public void clearChangeListeners() {
         eventListeners.clear();
     }

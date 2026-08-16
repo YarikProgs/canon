@@ -1,17 +1,16 @@
 package net.aros.canon.impl;
 
-import net.aros.canon.core.Canon;
 import net.aros.canon.core.state.StateKey;
-import net.aros.canon.core.state.StateStore;
 import net.aros.canon.core.tx.Transaction;
-import net.aros.canon.util.StateMap;
+import net.aros.canon.store.MutableStateStore;
 import net.aros.canon.util.ScopedStateKey;
+import net.aros.canon.util.StateMap;
 
 public class TransactionImpl implements Transaction {
     private final StateMap pendingChanges = new StateMap();
-    private final StateStore store;
+    private final MutableStateStore store;
 
-    public TransactionImpl(StateStore store) {
+    public TransactionImpl(MutableStateStore store) {
         this.store = store;
     }
 
@@ -28,6 +27,6 @@ public class TransactionImpl implements Transaction {
 
     @Override
     public void commit() {
-        ((StateStoreImpl) store).commit(pendingChanges, true, Canon.get().db());
+        store.commit(pendingChanges, true);
     }
 }

@@ -1,23 +1,22 @@
 package net.aros.canon.impl;
 
 import com.mojang.logging.LogUtils;
-import net.aros.canon.core.Canon;
 import net.aros.canon.core.state.StateKey;
-import net.aros.canon.core.state.StateStore;
 import net.aros.canon.core.tx.Sandbox;
 import net.aros.canon.event.StateHooks;
-import net.aros.canon.util.StateMap;
+import net.aros.canon.store.MutableStateStore;
 import net.aros.canon.util.ScopedStateKey;
+import net.aros.canon.util.StateMap;
 import org.slf4j.Logger;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class SandboxImpl implements Sandbox {
     private static final Logger LOGGER = LogUtils.getLogger();
     private final StateMap oldValues = new StateMap();
-    private final StateStore store;
+    private final MutableStateStore store;
     private final String name;
 
-    public SandboxImpl(StateStore store, String name) {
+    public SandboxImpl(MutableStateStore store, String name) {
         this.store = store;
         this.name = name;
     }
@@ -42,7 +41,7 @@ public class SandboxImpl implements Sandbox {
         for (ScopedStateKey<?, ?> scopeKey : oldValues.keySet()) {
             removeAndCommitIfOwner(commit, scopeKey);
         }
-        ((StateStoreImpl) store).commit(commit, false, Canon.get().db());
+        store.commit(commit, false);
     }
 
     private <S, T> void removeAndCommitIfOwner(StateMap commit, ScopedStateKey<S, T> scopedKey) {

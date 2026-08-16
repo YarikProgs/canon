@@ -1,8 +1,8 @@
 package net.aros.canon.impl;
 
+import net.aros.canon.core.migration.StateMigrator;
+import net.aros.canon.core.migration.StateMigratorRegistry;
 import net.aros.canon.core.state.type.StateType;
-import net.aros.canon.migration.StateMigrator;
-import net.aros.canon.migration.StateMigratorRegistry;
 
 import java.util.ArrayList;
 import java.util.List;

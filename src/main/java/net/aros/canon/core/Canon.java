@@ -1,19 +1,24 @@
 package net.aros.canon.core;
 
-import net.aros.canon.core.db.StatesDB;
-import net.aros.canon.core.state.StateStore;
+import net.aros.canon.core.migration.StateMigratorRegistry;
 import net.aros.canon.core.state.scope.ScopeType;
 import net.aros.canon.core.state.type.StateType;
+import net.aros.canon.db.StatesDB;
+import net.aros.canon.event.MutableStateEventHandler;
 import net.aros.canon.event.StateEventHandler;
 import net.aros.canon.impl.*;
-import net.aros.canon.migration.StateMigratorRegistry;
 import net.aros.canon.registry.MutableRegistry;
 import net.aros.canon.registry.Registry;
+import net.aros.canon.store.MutableStateStore;
+import net.aros.canon.store.StateStore;
+import net.minecraft.world.level.storage.LevelResource;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.AddReloadListenerEvent;
 import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import org.jetbrains.annotations.NotNull;
+
+import static net.aros.canon.CanonLibMod.MOD_ID;
 
 public class Canon {
     private static final Canon INSTANCE = new Canon();
@@ -28,11 +33,11 @@ public class Canon {
         NeoForge.EVENT_BUS.addListener(this::onServerAboutToStart);
     }
 
-    private final StatesDB db = new StatesDB();
-    private final StateStoreImpl store = new StateStoreImpl();
+    private final StatesDB db = new StatesDBSqLiteImpl();
+    private final MutableStateStore store = new StateStoreImpl();
     private final MutableRegistry<StateType<?>> typeRegistry = new RegistryImpl<>();
     private final MutableRegistry<ScopeType<?>> scopeRegistry = new RegistryImpl<>();
-    private final StateEventHandlerImpl eventHandler = new StateEventHandlerImpl();
+    private final MutableStateEventHandler eventHandler = new StateEventHandlerImpl();
     private final StateMigratorRegistry migratorRegistry = new StateMigratorRegistryImpl();
 
     public StateStore stateStore() {
@@ -60,7 +65,9 @@ public class Canon {
     }
 
     private void onServerAboutToStart(@NotNull ServerAboutToStartEvent event) {
-        store.createConnection(event.getServer(), db);
+        db.createConnection(event.getServer().getWorldPath(LevelResource.ROOT).resolve(MOD_ID).toAbsolutePath());
+        db.initialize();
+
         new StateReloadListener(eventHandler, store, typeRegistry, scopeRegistry, db).simpleReload().join();
     }
 
@@ -69,6 +76,7 @@ public class Canon {
     }
 
     private void onServerShutdown(ServerStoppedEvent event) {
-        store.closeConnection(db);
+        store.clear();
+        db.closeConnection();
     }
 }

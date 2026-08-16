@@ -1,12 +1,14 @@
 package net.aros.canon.impl;
 
-import net.aros.canon.core.db.StatesDB;
 import net.aros.canon.core.state.StateKey;
 import net.aros.canon.core.state.scope.ScopeType;
 import net.aros.canon.core.state.type.StateType;
+import net.aros.canon.db.StatesDB;
+import net.aros.canon.event.MutableStateEventHandler;
 import net.aros.canon.event.StateHooks;
 import net.aros.canon.reconciliation.Reconciler;
 import net.aros.canon.registry.MutableRegistry;
+import net.aros.canon.store.MutableStateStore;
 import net.aros.canon.util.StateMap;
 import net.minecraft.server.packs.resources.PreparableReloadListener;
 import net.minecraft.server.packs.resources.ResourceManager;
@@ -21,13 +23,18 @@ import java.util.concurrent.Executor;
 
 @ParametersAreNonnullByDefault
 public class StateReloadListener implements PreparableReloadListener {
-    private final StateEventHandlerImpl eventHandler;
-    private final StateStoreImpl store;
+    private final MutableStateEventHandler eventHandler;
+    private final MutableStateStore store;
     private final MutableRegistry<StateType<?>> typeRegistry;
     private final MutableRegistry<ScopeType<?>> scopeRegistry;
     private final StatesDB db;
 
-    public StateReloadListener(StateEventHandlerImpl eventHandler, StateStoreImpl store, MutableRegistry<StateType<?>> typeRegistry, MutableRegistry<ScopeType<?>> scopeRegistry, StatesDB db) {
+    public StateReloadListener(MutableStateEventHandler eventHandler,
+                               MutableStateStore store,
+                               MutableRegistry<StateType<?>> typeRegistry,
+                               MutableRegistry<ScopeType<?>> scopeRegistry,
+                               StatesDB db
+    ) {
         this.eventHandler = eventHandler;
         this.store = store;
         this.typeRegistry = typeRegistry;
@@ -66,10 +73,10 @@ public class StateReloadListener implements PreparableReloadListener {
                 .supplyAsync(this::prepare, gameExecutor)
                 .thenCompose(this::selectReconcileAndPersist)
                 .thenCompose(barrier::wait)
-                .thenAcceptAsync(store::replaceWith, gameExecutor);
+                .thenAcceptAsync(store::replaceLiveWith, gameExecutor);
     }
 
     public CompletableFuture<Void> simpleReload() {
-        return selectReconcileAndPersist(prepare()).thenAccept(store::replaceWith);
+        return selectReconcileAndPersist(prepare()).thenAccept(store::replaceLiveWith);
     }
 }
