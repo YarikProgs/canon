@@ -77,7 +77,7 @@ public final class Reconciler {
                     newKey.type().identifier()
             );
         } else {
-            LOGGER.warn("State {} (scope {} = {}) changed its type ({} -> {}) but migrator wasn't found. Using default value, also not modifying db's row",
+            LOGGER.warn("State {} (scope {} = {}) changed its type ({} -> {}) but migrator wasn't found",
                     old.key().identifier(),
                     old.key().scopeType().identifier(),
                     old.scope(),
