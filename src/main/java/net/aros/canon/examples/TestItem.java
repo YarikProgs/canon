@@ -1,10 +1,10 @@
 package net.aros.canon.examples;
 
 import net.aros.canon.CanonLibMod;
-import net.aros.canon.core.flag.FlagKey;
-import net.aros.canon.core.flag.scope.BuiltinScopeTypes;
-import net.aros.canon.core.flag.type.BuiltinFlagTypes;
-import net.aros.canon.event.custom.FlagRegistrationEvent;
+import net.aros.canon.core.state.StateKey;
+import net.aros.canon.core.state.scope.BuiltinScopeTypes;
+import net.aros.canon.core.state.type.BuiltinStateTypes;
+import net.aros.canon.event.custom.StateRegistrationEvent;
 import net.aros.canon.wrapper.Can;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -35,8 +35,8 @@ public class TestItem extends Item {
 
     public static boolean usingLegacy = true;
 
-    public static final FlagKey<UUID, Boolean> PLAYER_DIED_LEGACY = new FlagKey<>(BuiltinScopeTypes.ENTITY, CanonLibMod.id("died"), BuiltinFlagTypes.BOOL);
-    public static final FlagKey<UUID, Integer> PLAYER_DIED = new FlagKey<>(BuiltinScopeTypes.ENTITY, CanonLibMod.id("died"), BuiltinFlagTypes.INT);
+    public static final StateKey<UUID, Boolean> PLAYER_DIED_LEGACY = new StateKey<>(BuiltinScopeTypes.ENTITY, CanonLibMod.id("died"), BuiltinStateTypes.BOOL);
+    public static final StateKey<UUID, Integer> PLAYER_DIED = new StateKey<>(BuiltinScopeTypes.ENTITY, CanonLibMod.id("died"), BuiltinStateTypes.INT);
 
     @Override
     @NotNull
@@ -46,20 +46,20 @@ public class TestItem extends Item {
             if (player.isShiftKeyDown()) {
                 usingLegacy = !usingLegacy;
             } else {
-                player.sendSystemMessage(Component.literal(Can.get(playerDiedFlag(), player.getUUID()) + " смертей"));
+                player.sendSystemMessage(Component.literal(Can.get(playerDiedState(), player.getUUID()) + " смертей"));
             }
         }
         return InteractionResultHolder.success(stack);
     }
 
-    public static FlagKey<UUID, ?> playerDiedFlag() {
+    public static StateKey<UUID, ?> playerDiedState() {
         return usingLegacy ? PLAYER_DIED_LEGACY : PLAYER_DIED;
     }
 
     @SubscribeEvent
-    public static void onFlagRegistration(FlagRegistrationEvent e) {
+    public static void onStateRegistration(StateRegistrationEvent e) {
         if (usingLegacy) {
-            e.registerFlag(PLAYER_DIED_LEGACY)
+            e.registerStateKey(PLAYER_DIED_LEGACY)
                     .addEventListener(LivingDeathEvent.class, (key, event) -> {
                         if (event.getEntity() instanceof ServerPlayer) Can.set(key, event.getEntity().getUUID(), true);
                     })
@@ -73,7 +73,7 @@ public class TestItem extends Item {
                         Can.server().getPlayerList().getPlayer(scope).sendSystemMessage(msg);
                     });
         } else {
-            e.registerFlag(PLAYER_DIED)
+            e.registerStateKey(PLAYER_DIED)
                     .addEventListener(LivingDeathEvent.class, (key, event) -> {
                         if (event.getEntity() instanceof ServerPlayer) Can.set(key, event.getEntity().getUUID(), Can.get(key, event.getEntity().getUUID()) + 1);
                     })

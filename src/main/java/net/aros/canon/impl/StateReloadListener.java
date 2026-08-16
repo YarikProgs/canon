@@ -1,13 +1,13 @@
 package net.aros.canon.impl;
 
-import net.aros.canon.core.db.FlagsDB;
-import net.aros.canon.core.flag.FlagKey;
-import net.aros.canon.core.flag.scope.ScopeType;
-import net.aros.canon.core.flag.type.FlagType;
-import net.aros.canon.event.FlagHooks;
+import net.aros.canon.core.db.StatesDB;
+import net.aros.canon.core.state.StateKey;
+import net.aros.canon.core.state.scope.ScopeType;
+import net.aros.canon.core.state.type.StateType;
+import net.aros.canon.event.StateHooks;
 import net.aros.canon.reconciliation.Reconciler;
 import net.aros.canon.registry.MutableRegistry;
-import net.aros.canon.util.FlagMap;
+import net.aros.canon.util.StateMap;
 import net.minecraft.server.packs.resources.PreparableReloadListener;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.util.profiling.ProfilerFiller;
@@ -20,14 +20,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 @ParametersAreNonnullByDefault
-public class FlagReloadListener implements PreparableReloadListener {
-    private final FlagEventHandlerImpl eventHandler;
-    private final FlagStoreImpl store;
-    private final MutableRegistry<FlagType<?>> typeRegistry;
+public class StateReloadListener implements PreparableReloadListener {
+    private final StateEventHandlerImpl eventHandler;
+    private final StateStoreImpl store;
+    private final MutableRegistry<StateType<?>> typeRegistry;
     private final MutableRegistry<ScopeType<?>> scopeRegistry;
-    private final FlagsDB db;
+    private final StatesDB db;
 
-    public FlagReloadListener(FlagEventHandlerImpl eventHandler, FlagStoreImpl store, MutableRegistry<FlagType<?>> typeRegistry, MutableRegistry<ScopeType<?>> scopeRegistry, FlagsDB db) {
+    public StateReloadListener(StateEventHandlerImpl eventHandler, StateStoreImpl store, MutableRegistry<StateType<?>> typeRegistry, MutableRegistry<ScopeType<?>> scopeRegistry, StatesDB db) {
         this.eventHandler = eventHandler;
         this.store = store;
         this.typeRegistry = typeRegistry;
@@ -35,18 +35,18 @@ public class FlagReloadListener implements PreparableReloadListener {
         this.db = db;
     }
 
-    private Set<FlagKey<?, ?>> prepare() {
+    private Set<StateKey<?, ?>> prepare() {
         eventHandler.clearChangeListeners();
         eventHandler.unsubscribeAllEvents();
-        var event = FlagHooks.fireFlagRegistration();;
+        var event = StateHooks.fireStateRegistration();;
         typeRegistry.replaceWith(event.registeredTypes());
         scopeRegistry.replaceWith(event.registeredScopeTypes());
         return event.registeredKeys();
     }
 
-    private CompletableFuture<FlagMap> selectReconcileAndPersist(Set<FlagKey<?, ?>> newKeys) {
+    private CompletableFuture<StateMap> selectReconcileAndPersist(Set<StateKey<?, ?>> newKeys) {
         return CompletableFuture.supplyAsync(() -> {
-            FlagMap currentMap = db.selectAll();
+            StateMap currentMap = db.selectAll();
             var result = new Reconciler(newKeys, currentMap).reconcileKeys();
             db.persist(result.persist());
             return result.newMap();

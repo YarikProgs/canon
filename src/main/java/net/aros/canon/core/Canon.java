@@ -1,12 +1,12 @@
 package net.aros.canon.core;
 
-import net.aros.canon.core.db.FlagsDB;
-import net.aros.canon.core.flag.FlagStore;
-import net.aros.canon.core.flag.scope.ScopeType;
-import net.aros.canon.core.flag.type.FlagType;
-import net.aros.canon.event.FlagEventHandler;
+import net.aros.canon.core.db.StatesDB;
+import net.aros.canon.core.state.StateStore;
+import net.aros.canon.core.state.scope.ScopeType;
+import net.aros.canon.core.state.type.StateType;
+import net.aros.canon.event.StateEventHandler;
 import net.aros.canon.impl.*;
-import net.aros.canon.migration.FlagMigratorRegistry;
+import net.aros.canon.migration.StateMigratorRegistry;
 import net.aros.canon.registry.MutableRegistry;
 import net.aros.canon.registry.Registry;
 import net.neoforged.neoforge.common.NeoForge;
@@ -28,18 +28,18 @@ public class Canon {
         NeoForge.EVENT_BUS.addListener(this::onServerAboutToStart);
     }
 
-    private final FlagsDB db = new FlagsDB();
-    private final FlagStoreImpl store = new FlagStoreImpl();
-    private final MutableRegistry<FlagType<?>> typeRegistry = new RegistryImpl<>();
+    private final StatesDB db = new StatesDB();
+    private final StateStoreImpl store = new StateStoreImpl();
+    private final MutableRegistry<StateType<?>> typeRegistry = new RegistryImpl<>();
     private final MutableRegistry<ScopeType<?>> scopeRegistry = new RegistryImpl<>();
-    private final FlagEventHandlerImpl eventHandler = new FlagEventHandlerImpl();
-    private final FlagMigratorRegistry migratorRegistry = new FlagMigratorRegistryImpl();
+    private final StateEventHandlerImpl eventHandler = new StateEventHandlerImpl();
+    private final StateMigratorRegistry migratorRegistry = new StateMigratorRegistryImpl();
 
-    public FlagStore flagStore() {
+    public StateStore stateStore() {
         return store;
     }
 
-    public Registry<FlagType<?>> flagTypeRegistry() {
+    public Registry<StateType<?>> stateTypeRegistry() {
         return typeRegistry;
     }
 
@@ -47,25 +47,25 @@ public class Canon {
         return scopeRegistry;
     }
 
-    public FlagEventHandler flagEventHandler() {
+    public StateEventHandler stateEventHandler() {
         return eventHandler;
     }
 
-    public FlagMigratorRegistry migratorRegistry() {
+    public StateMigratorRegistry migratorRegistry() {
         return migratorRegistry;
     }
 
-    public FlagsDB db() {
+    public StatesDB db() {
         return db;
     }
 
     private void onServerAboutToStart(@NotNull ServerAboutToStartEvent event) {
         store.createConnection(event.getServer(), db);
-        new FlagReloadListener(eventHandler, store, typeRegistry, scopeRegistry, db).simpleReload().join();
+        new StateReloadListener(eventHandler, store, typeRegistry, scopeRegistry, db).simpleReload().join();
     }
 
     private void onAddReloadListener(@NotNull AddReloadListenerEvent event) {
-        event.addListener(new FlagReloadListener(eventHandler, store, typeRegistry, scopeRegistry, db));
+        event.addListener(new StateReloadListener(eventHandler, store, typeRegistry, scopeRegistry, db));
     }
 
     private void onServerShutdown(ServerStoppedEvent event) {

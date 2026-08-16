@@ -1,6 +1,6 @@
 package net.aros.canon.reconciliation;
 
-import net.aros.canon.util.FlagMap;
+import net.aros.canon.util.StateMap;
 
-public record ReconciliationResult(FlagMap newMap, FlagMap persist) {
+public record ReconciliationResult(StateMap newMap, StateMap persist) {
 }

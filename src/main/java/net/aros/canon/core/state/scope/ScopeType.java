@@ -1,4 +1,4 @@
-package net.aros.canon.core.flag.scope;
+package net.aros.canon.core.state.scope;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;

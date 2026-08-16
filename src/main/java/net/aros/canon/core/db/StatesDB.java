@@ -4,12 +4,12 @@ import com.mojang.logging.LogUtils;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
 import net.aros.canon.core.Canon;
-import net.aros.canon.core.flag.FlagKey;
-import net.aros.canon.core.flag.scope.ScopeType;
-import net.aros.canon.core.flag.type.FlagType;
-import net.aros.canon.util.FlagMap;
+import net.aros.canon.core.state.StateKey;
+import net.aros.canon.core.state.scope.ScopeType;
+import net.aros.canon.core.state.type.StateType;
+import net.aros.canon.util.StateMap;
 import net.aros.canon.util.GsonHelper;
-import net.aros.canon.util.ScopedFlagKey;
+import net.aros.canon.util.ScopedStateKey;
 import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -23,10 +23,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 @SuppressWarnings("SqlDialectInspection")
-public class FlagsDB {
+public class StatesDB {
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final String FILENAME = "flags.db";
-    private static final String TABLE = "flags";
+    private static final String FILENAME = "states.db";
+    private static final String TABLE = "states";
 
     public static final String SQL_INIT = """
             CREATE TABLE IF NOT EXISTS %s (
@@ -78,8 +78,8 @@ public class FlagsDB {
         withConnection("closeConnection", Connection::close);
     }
 
-    public FlagMap selectAll() {
-        FlagMap map = new FlagMap();
+    public StateMap selectAll() {
+        StateMap map = new StateMap();
 
         withConnection("selectAll", conn -> {
             try (Statement st = conn.createStatement()) {
@@ -108,13 +108,13 @@ public class FlagsDB {
     }
 
     @SuppressWarnings({"rawtypes","unchecked"})
-    public void persist(FlagMap map) {
+    public void persist(StateMap map) {
         withConnection("persist", conn -> {
             conn.setAutoCommit(false);
 
             try (PreparedStatement statement = conn.prepareStatement(SQL_UPSERT)) {
                 for (var entry : map.entrySet()) {
-                    if (encodeIntoStatement(statement, (ScopedFlagKey) entry.getKey(), entry.getValue())) {
+                    if (encodeIntoStatement(statement, (ScopedStateKey) entry.getKey(), entry.getValue())) {
                         statement.addBatch();
                     }
                 }
@@ -123,7 +123,7 @@ public class FlagsDB {
         }, Connection::rollback, conn -> conn.setAutoCommit(true));
     }
 
-    private <S, T> boolean encodeIntoStatement(PreparedStatement statement, ScopedFlagKey<S, T> key, T value) throws SQLException {
+    private <S, T> boolean encodeIntoStatement(PreparedStatement statement, ScopedStateKey<S, T> key, T value) throws SQLException {
         String encodedScopeType = key.key().scopeType().identifier().toString();
         String encodedKey = key.key().identifier().toString();
         String encodedType = key.key().type().identifier().toString();
@@ -131,7 +131,7 @@ public class FlagsDB {
         DataResult<String> encodedScope = key.key().scopeType().scopeCodec().encodeStart(JsonOps.INSTANCE, key.scope())
                 .map(GsonHelper::toString);
         if (encodedScope.isError()) {
-            LOGGER.warn("Failed to encode flag '{}': Failed to encode scope '{}': {}",
+            LOGGER.warn("Failed to encode state '{}': Failed to encode scope '{}': {}",
                     encodedKey, encodedScopeType, encodedScope.error().orElseThrow());
             return false;
         }
@@ -139,7 +139,7 @@ public class FlagsDB {
         DataResult<String> encodedValue = key.key().type().codec().encodeStart(JsonOps.INSTANCE, value)
                 .map(GsonHelper::toString);
         if (encodedValue.isError()) {
-            LOGGER.warn("Failed to encode flag '{}': Failed to encode value '{}': {}",
+            LOGGER.warn("Failed to encode state '{}': Failed to encode value '{}': {}",
                     encodedKey, encodedType, encodedValue.error().orElseThrow());
             return false;
         }
@@ -151,33 +151,33 @@ public class FlagsDB {
         return true;
     }
 
-    private void parseIntoMap(FlagMap map, ResourceLocation scopeType, String scope, ResourceLocation key, ResourceLocation type, String value) {
+    private void parseIntoMap(StateMap map, ResourceLocation scopeType, String scope, ResourceLocation key, ResourceLocation type, String value) {
         ScopeType<?> parsedScopeType = Canon.get().scopeTypeRegistry().get(scopeType);
         if (parsedScopeType == null) {
-            LOGGER.warn("Failed to parse flag '{}': Unknown scope type '{}'", key, scopeType);
+            LOGGER.warn("Failed to parse state '{}': Unknown scope type '{}'", key, scopeType);
             return;
         }
-        FlagType<?> parsedType = Canon.get().flagTypeRegistry().get(type);
+        StateType<?> parsedType = Canon.get().stateTypeRegistry().get(type);
         if (parsedType == null) {
-            LOGGER.warn("Failed to parse flag '{}': Unknown flag type '{}'", key, type);
+            LOGGER.warn("Failed to parse state '{}': Unknown state type '{}'", key, type);
             return;
         }
         parseIntoMap(map, parsedScopeType, scope, key, parsedType, value);
     }
 
-    private <S, T> void parseIntoMap(FlagMap map, ScopeType<S> parsedScopeType, String scope, ResourceLocation key, FlagType<T> parsedType, String value) {
+    private <S, T> void parseIntoMap(StateMap map, ScopeType<S> parsedScopeType, String scope, ResourceLocation key, StateType<T> parsedType, String value) {
         DataResult<S> parsedScope = parsedScopeType.scopeCodec().parse(JsonOps.INSTANCE, GsonHelper.parse(scope));
         if (parsedScope.isError()) {
-            LOGGER.warn("Failed to parse flag '{}', invalid scope '{}': {}", key, parsedScopeType.identifier(), parsedScope.error().orElseThrow());
+            LOGGER.warn("Failed to parse state '{}', invalid scope '{}': {}", key, parsedScopeType.identifier(), parsedScope.error().orElseThrow());
             return;
         }
         DataResult<T> parsedValue = parsedType.codec().parse(JsonOps.INSTANCE, GsonHelper.parse(value));
         if (parsedValue.isError()) {
-            LOGGER.warn("Failed to parse flag '{}', invalid value: {}", key, parsedValue.error().orElseThrow());
+            LOGGER.warn("Failed to parse state '{}', invalid value: {}", key, parsedValue.error().orElseThrow());
             return;
         }
-        FlagKey<S, T> flagKey = new FlagKey<>(parsedScopeType, key, parsedType);
-        map.put(flagKey, parsedScope.getOrThrow(), parsedValue.getOrThrow());
+        StateKey<S, T> stateKey = new StateKey<>(parsedScopeType, key, parsedType);
+        map.put(stateKey, parsedScope.getOrThrow(), parsedValue.getOrThrow());
     }
 
     private void withConnection(

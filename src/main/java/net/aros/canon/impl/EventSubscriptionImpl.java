@@ -1,6 +1,6 @@
 package net.aros.canon.impl;
 
-import net.aros.canon.core.flag.registration.EventSubscription;
+import net.aros.canon.core.state.registration.EventSubscription;
 import net.neoforged.bus.api.Event;
 import net.neoforged.neoforge.common.NeoForge;
 import org.jetbrains.annotations.NotNull;

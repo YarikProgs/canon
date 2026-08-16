@@ -1,8 +1,8 @@
-package net.aros.canon.core.flag.scope;
+package net.aros.canon.core.state.scope;
 
 import com.mojang.serialization.Codec;
 import net.aros.canon.CanonLibMod;
-import net.aros.canon.event.custom.FlagRegistrationEvent;
+import net.aros.canon.event.custom.StateRegistrationEvent;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
@@ -20,7 +20,7 @@ public class BuiltinScopeTypes {
     public static final ScopeType<ResourceKey<Level>> DIMENSION = new ScopeType<>(CanonLibMod.id("dimension"), ResourceKey.codec(Registries.DIMENSION));
 
     @SubscribeEvent
-    public static void onFlagRegistration(FlagRegistrationEvent event) {
+    public static void onStateRegistration(StateRegistrationEvent event) {
         event.registerScopeType(GLOBAL);
         event.registerScopeType(ENTITY);
         event.registerScopeType(DIMENSION);
