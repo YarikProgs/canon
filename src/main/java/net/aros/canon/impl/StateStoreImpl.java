@@ -6,25 +6,26 @@ import net.aros.canon.core.state.StateKey;
 import net.aros.canon.core.state.StateStore;
 import net.aros.canon.core.tx.Sandbox;
 import net.aros.canon.event.StateHooks;
-import net.aros.canon.util.StateMap;
 import net.aros.canon.util.ScopedStateKey;
+import net.aros.canon.util.StateMap;
 import net.aros.canon.wrapper.Can;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.storage.LevelResource;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static net.aros.canon.CanonLibMod.MOD_ID;
 
+@ParametersAreNonnullByDefault
 public class StateStoreImpl implements StateStore {
     private final StateMap states = new StateMap();
     private final Map<ScopedStateKey<?, ?>, Sandbox> ownership = new ConcurrentHashMap<>();
 
-    public void createConnection(@NotNull MinecraftServer server, StatesDB db) {
+    public void createConnection(MinecraftServer server, StatesDB db) {
         db.createConnection(server.getWorldPath(LevelResource.ROOT).resolve(MOD_ID).toAbsolutePath());
         db.initialize();
     }
@@ -44,7 +45,10 @@ public class StateStoreImpl implements StateStore {
 
     @Override
     public <S, T> void setLive(StateKey<S, T> key, S scope, T value) {
+        var oldValue = get(key, scope);
         states.put(key, scope, value);
+
+        StateHooks.stateChanged(key, scope, oldValue, value);
     }
 
     @Override
@@ -67,23 +71,30 @@ public class StateStoreImpl implements StateStore {
     }
 
     public void replaceWith(StateMap newStates) {
+        var oldStates = new StateMap(states);
         states.clear();
         ownership.clear();
         states.putAll(newStates);
+        fireChanges(oldStates, newStates);
         StateHooks.fireStateReset();
     }
 
-    public CompletableFuture<Void> commit(@NotNull StateMap changes, boolean notifyListeners, StatesDB db) {
+    public CompletableFuture<Void> commit(StateMap changes, boolean notifyListeners, StatesDB db) {
         return CompletableFuture
                 .runAsync(() -> db.persist(changes), db.executor())
                 .thenRunAsync(() -> {
                     StateMap oldStates = new StateMap(states);
                     states.putAll(changes);
                     if (notifyListeners) {
-                        for (var e : changes.entrySet())
-                            //noinspection rawtypes,deprecation,unchecked
-                            StateHooks.stateChanged((StateKey) e.getKey().key(), e.getKey().scope(), oldStates.get(e.getKey()), e.getValue());
+                        fireChanges(oldStates, changes);
                     }
                 }, Can.server());
+    }
+
+    @SuppressWarnings({"rawtypes", "deprecation", "unchecked"})
+    private static void fireChanges(StateMap oldMap, StateMap newMap) {
+        for (Map.Entry<ScopedStateKey<?, ?>, Object> entry : newMap.entrySet()) {
+            StateHooks.stateChanged((StateKey) entry.getKey().key(), entry.getKey().scope(), oldMap.get(entry.getKey()), entry.getValue());
+        }
     }
 }

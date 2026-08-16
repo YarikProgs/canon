@@ -38,7 +38,7 @@ public class StateReloadListener implements PreparableReloadListener {
     private Set<StateKey<?, ?>> prepare() {
         eventHandler.clearChangeListeners();
         eventHandler.unsubscribeAllEvents();
-        var event = StateHooks.fireStateRegistration();;
+        var event = StateHooks.fireStateRegistration();
         typeRegistry.replaceWith(event.registeredTypes());
         scopeRegistry.replaceWith(event.registeredScopeTypes());
         return event.registeredKeys();

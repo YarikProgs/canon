@@ -31,7 +31,6 @@ public class SandboxImpl implements Sandbox {
     public <S, T> void set(StateKey<S, T> key, S scope, T value) {
         oldValues.computeIfAbsent(new ScopedStateKey<>(key, scope), key1 -> store.get((StateKey) key1.key(), key1.scope()));
         store.setLive(key, scope, value);
-        StateHooks.stateChanged(key, scope, (T) oldValues.get(key, scope), value);
 
         checkConflict(key, scope);
         store.setOwner(key, scope, this);
